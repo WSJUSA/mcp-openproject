@@ -1,5 +1,6 @@
 // Tool handlers for OpenProject MCP server
 import { OpenProjectClient } from '../client/openproject-client.js';
+import { logger } from '../utils/logger.js';
 import {
   GetProjectsArgsSchema,
   GetProjectArgsSchema,
@@ -21,62 +22,101 @@ export class OpenProjectToolHandlers {
 
   async handleToolCall(request: any): Promise<any> {
     const { name, arguments: args } = request.params;
+    const startTime = Date.now();
+    
+    logger.info(`Tool execution started: ${name}`, { args });
+    logger.logRawData(`${name} input args`, args);
 
     try {
+      let result;
       switch (name) {
         // Project handlers
         case 'get_projects':
-          return await this.handleGetProjects(args);
+          result = await this.handleGetProjects(args);
+          break;
         case 'get_project':
-          return await this.handleGetProject(args);
+          result = await this.handleGetProject(args);
+          break;
         case 'create_project':
-          return await this.handleCreateProject(args);
+          result = await this.handleCreateProject(args);
+          break;
         case 'update_project':
-          return await this.handleUpdateProject(args);
+          result = await this.handleUpdateProject(args);
+          break;
         case 'delete_project':
-          return await this.handleDeleteProject(args);
+          result = await this.handleDeleteProject(args);
+          break;
 
         // Work Package handlers
         case 'get_work_packages':
-          return await this.handleGetWorkPackages(args);
+          result = await this.handleGetWorkPackages(args);
+          break;
         case 'get_work_package':
-          return await this.handleGetWorkPackage(args);
+          result = await this.handleGetWorkPackage(args);
+          break;
         case 'create_work_package':
-          return await this.handleCreateWorkPackage(args);
+          result = await this.handleCreateWorkPackage(args);
+          break;
         case 'update_work_package':
-          return await this.handleUpdateWorkPackage(args);
+          result = await this.handleUpdateWorkPackage(args);
+          break;
 
         // Search handlers
         case 'search':
-          return await this.handleSearch(args);
+          result = await this.handleSearch(args);
+          break;
 
         // User handlers
         case 'get_users':
-          return await this.handleGetUsers(args);
+          result = await this.handleGetUsers(args);
+          break;
         case 'get_current_user':
-        return await this.handleGetCurrentUser();
+          result = await this.handleGetCurrentUser();
+          break;
 
         // Time Entry handlers
         case 'get_time_entries':
-          return await this.handleGetTimeEntries(args);
+          result = await this.handleGetTimeEntries(args);
+          break;
         case 'create_time_entry':
-          return await this.handleCreateTimeEntry(args);
+          result = await this.handleCreateTimeEntry(args);
+          break;
 
         // Utility handlers
         case 'test_connection':
-        return await this.handleTestConnection();
-      case 'get_api_info':
-        return await this.handleGetApiInfo();
+          result = await this.handleTestConnection();
+          break;
+        case 'get_api_info':
+          result = await this.handleGetApiInfo();
+          break;
 
         default:
           throw new Error(`Unknown tool: ${name}`);
       }
+      
+      logger.logToolExecution(name, args, startTime, result);
+      logger.logRawData(`${name} output result`, result);
+      
+      return result;
     } catch (error) {
+      logger.logToolExecution(name, args, startTime, undefined, error);
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorDetails = {
+        toolName: name,
+        args,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      };
+      
+      logger.error(`Tool execution failed: ${name}`, errorDetails);
+      
       return {
         content: [
           {
             type: 'text',
-            text: `Error executing ${name}: ${error instanceof Error ? error.message : String(error)}`,
+            text: `Error executing ${name}: ${errorMessage}\n\nFor debugging, check the logs with MCP_LOG_LEVEL=DEBUG`,
           },
         ],
         isError: true,

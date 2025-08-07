@@ -15,6 +15,7 @@ import {
   TimeEntrySchema,
   CollectionResponseSchema,
 } from '../types/openproject.js';
+import { logger } from '../utils/logger.js';
 
 export class OpenProjectClient {
   private axiosInstance: AxiosInstance;
@@ -87,14 +88,64 @@ export class OpenProjectClient {
 
   // Projects API
   async getProjects(params: QueryParams = {}): Promise<CollectionResponse> {
+    const startTime = Date.now();
     const queryString = this.buildQueryString(params);
-    const response = await this.axiosInstance.get(`/projects${queryString}`);
-    return CollectionResponseSchema.parse(response.data);
+    const url = `/projects${queryString}`;
+    
+    try {
+      logger.logApiRequest('GET', url, undefined, params);
+      const response = await this.axiosInstance.get(url);
+      
+      logger.logApiResponse('GET', url, response.status, response.headers, response.data);
+      logger.logRawData('getProjects response', response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`getProjects completed successfully (${duration}ms)`, {
+        totalProjects: response.data?.total,
+        returnedCount: response.data?._embedded?.elements?.length
+      });
+      
+      return CollectionResponseSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`getProjects failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        params
+      });
+      throw error;
+    }
   }
 
   async getProject(id: number): Promise<Project> {
-    const response = await this.axiosInstance.get(`/projects/${id}`);
-    return ProjectSchema.parse(response.data);
+    const startTime = Date.now();
+    const url = `/projects/${id}`;
+    
+    try {
+      logger.logApiRequest('GET', url, undefined, { id });
+      const response = await this.axiosInstance.get(url);
+      
+      logger.logApiResponse('GET', url, response.status, response.headers, response.data);
+      logger.logRawData('getProject response', response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`getProject completed successfully (${duration}ms)`, {
+        projectId: id,
+        projectName: response.data?.name
+      });
+      
+      return ProjectSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`getProject failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        projectId: id
+      });
+      throw error;
+    }
   }
 
   async createProject(projectData: Partial<Project>): Promise<Project> {
@@ -113,9 +164,34 @@ export class OpenProjectClient {
 
   // Work Packages API
   async getWorkPackages(params: QueryParams = {}): Promise<CollectionResponse> {
+    const startTime = Date.now();
     const queryString = this.buildQueryString(params);
-    const response = await this.axiosInstance.get(`/work_packages${queryString}`);
-    return CollectionResponseSchema.parse(response.data);
+    const url = `/work_packages${queryString}`;
+    
+    try {
+      logger.logApiRequest('GET', url, undefined, params);
+      const response = await this.axiosInstance.get(url);
+      
+      logger.logApiResponse('GET', url, response.status, response.headers, response.data);
+      logger.logRawData('getWorkPackages response', response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`getWorkPackages completed successfully (${duration}ms)`, {
+        totalWorkPackages: response.data?.total,
+        returnedCount: response.data?._embedded?.elements?.length
+      });
+      
+      return CollectionResponseSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`getWorkPackages failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        params
+      });
+      throw error;
+    }
   }
 
   async getWorkPackage(id: number): Promise<WorkPackage> {
@@ -197,18 +273,31 @@ export class OpenProjectClient {
   // Utility methods
   async testConnection(): Promise<boolean> {
     try {
-      await this.axiosInstance.get('/configuration');
+      logger.info('Testing connection to OpenProject API...');
+      logger.logApiRequest('GET', '/configuration');
+      
+      const response = await this.axiosInstance.get('/configuration');
+      
+      logger.logApiResponse('GET', '/configuration', response.status, response.headers, response.data);
+      logger.info('✅ Connection successful');
       return true;
     } catch (error: any) {
-      console.error('OpenProject API connection test failed:');
+      logger.error('❌ Connection failed', {
+        error: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        responseData: error.response?.data,
+        requestConfig: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        }
+      });
+      
       if (error.response) {
-        console.error(`HTTP ${error.response.status}: ${error.response.statusText}`);
-        console.error('Response data:', error.response.data);
-      } else if (error.request) {
-        console.error('No response received:', error.message);
-      } else {
-        console.error('Request setup error:', error.message);
+        logger.logApiResponse('GET', '/configuration', error.response.status, error.response.headers, error.response.data);
       }
+      
       return false;
     }
   }

@@ -12,10 +12,24 @@ export const ProjectSchema = z.object({
   id: z.number(),
   identifier: z.string(),
   name: z.string(),
-  description: z.string().nullable(),
+  description: z.union([
+    z.string(),
+    z.object({
+      format: z.string(),
+      raw: z.string(),
+      html: z.string().optional(),
+    }),
+    z.null()
+  ]).optional(),
   public: z.boolean(),
   active: z.boolean(),
-  status: z.string(),
+  status: z.union([
+    z.string(),
+    z.object({
+      id: z.number(),
+      name: z.string(),
+    })
+  ]).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   _type: z.literal('Project'),
@@ -108,9 +122,15 @@ export const TimeEntrySchema = z.object({
   _links: z.record(z.any()).optional(),
 });
 
-// Collection response schema
+// Collection response schema - OpenProject uses different _type values for different collections
 export const CollectionResponseSchema = z.object({
-  _type: z.literal('Collection'),
+  _type: z.union([
+    z.literal('Collection'),
+    z.literal('WorkPackageCollection'),
+    z.literal('ProjectCollection'),
+    z.literal('UserCollection'),
+    z.literal('TimeEntryCollection')
+  ]),
   total: z.number(),
   count: z.number(),
   pageSize: z.number().optional(),

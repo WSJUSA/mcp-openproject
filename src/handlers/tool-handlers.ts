@@ -126,39 +126,110 @@ export class OpenProjectToolHandlers {
 
   // Project handlers
   private async handleGetProjects(args: any) {
-    const validatedArgs = GetProjectsArgsSchema.parse(args);
-    const queryParams = {
-      ...(validatedArgs.offset !== undefined && { offset: validatedArgs.offset }),
-      ...(validatedArgs.pageSize !== undefined && { pageSize: validatedArgs.pageSize }),
-      ...(validatedArgs.filters !== undefined && { filters: validatedArgs.filters }),
-      ...(validatedArgs.sortBy !== undefined && { sortBy: validatedArgs.sortBy }),
-    };
-    const result = await this.client.getProjects(queryParams);
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Found ${result.total} projects:\n\n${result._embedded.elements
-            .map((project: any) => `- ${project.name} (ID: ${project.id}) - ${project.description || 'No description'}`)
-            .join('\n')}`,
-        },
-      ],
-    };
+    try {
+      logger.debug('Validating args for get_projects', { args });
+      const validatedArgs = GetProjectsArgsSchema.parse(args);
+      logger.logSchemaValidation('get_projects', args);
+      
+      const queryParams = {
+        ...(validatedArgs.offset !== undefined && { offset: validatedArgs.offset }),
+        ...(validatedArgs.pageSize !== undefined && { pageSize: validatedArgs.pageSize }),
+        ...(validatedArgs.filters !== undefined && { filters: validatedArgs.filters }),
+        ...(validatedArgs.sortBy !== undefined && { sortBy: validatedArgs.sortBy }),
+      };
+      
+      logger.debug('Calling client.getProjects', { queryParams });
+      const result = await this.client.getProjects(queryParams);
+      
+      logger.logRawData('getProjects client result', result);
+      logger.debug('Processing projects result', {
+        total: result.total,
+        elementsCount: result._embedded?.elements?.length,
+        hasEmbedded: !!result._embedded,
+        resultKeys: Object.keys(result)
+      });
+      
+      return {
+         content: [
+           {
+             type: 'text',
+             text: `Found ${result.total} projects:\n\n${result._embedded.elements
+               .map((project: any) => {
+                 // Handle description that can be string, object, or null
+                 let descriptionText = 'No description';
+                 if (project.description) {
+                   if (typeof project.description === 'string') {
+                     descriptionText = project.description;
+                   } else if (typeof project.description === 'object' && project.description.raw) {
+                     descriptionText = project.description.raw;
+                   }
+                 }
+                 return `- ${project.name} (ID: ${project.id}) - ${descriptionText}`;
+               })
+               .join('\n')}`,
+           },
+         ],
+       };
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        logger.logSchemaValidation('get_projects', args, error);
+      }
+      throw error;
+    }
   }
 
   private async handleGetProject(args: any) {
-    const validatedArgs = GetProjectArgsSchema.parse(args);
-    const project = await this.client.getProject(validatedArgs.id);
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Project Details:\n\nName: ${project.name}\nID: ${project.id}\nIdentifier: ${project.identifier}\nDescription: ${project.description || 'No description'}\nStatus: ${project.status}\nPublic: ${project.public}\nActive: ${project.active}\nCreated: ${project.createdAt}\nUpdated: ${project.updatedAt}`,
-        },
-      ],
-    };
+    try {
+      logger.debug('Validating args for get_project', { args });
+      const validatedArgs = GetProjectArgsSchema.parse(args);
+      logger.logSchemaValidation('get_project', args);
+      
+      logger.debug('Calling client.getProject', { id: validatedArgs.id });
+      const project = await this.client.getProject(validatedArgs.id);
+      
+      logger.logRawData('getProject client result', project);
+      logger.debug('Processing project result', {
+        projectId: project.id,
+        projectName: project.name,
+        projectKeys: Object.keys(project),
+        descriptionType: typeof project.description,
+        descriptionValue: project.description
+      });
+      
+      // Handle description that can be string, object, or null
+      let descriptionText = 'No description';
+      if (project.description) {
+        if (typeof project.description === 'string') {
+          descriptionText = project.description;
+        } else if (typeof project.description === 'object' && project.description.raw) {
+          descriptionText = project.description.raw;
+        }
+      }
+      
+      // Handle status that can be string or object
+      let statusText = 'Unknown';
+      if (project.status) {
+        if (typeof project.status === 'string') {
+          statusText = project.status;
+        } else if (typeof project.status === 'object' && project.status.name) {
+          statusText = project.status.name;
+        }
+      }
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Project Details:\n\nName: ${project.name}\nID: ${project.id}\nIdentifier: ${project.identifier}\nDescription: ${descriptionText}\nStatus: ${statusText}\nPublic: ${project.public}\nActive: ${project.active}\nCreated: ${project.createdAt}\nUpdated: ${project.updatedAt}`,
+          },
+        ],
+      };
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        logger.logSchemaValidation('get_project', args, error);
+      }
+      throw error;
+    }
   }
 
   private async handleCreateProject(args: any) {
@@ -218,33 +289,53 @@ export class OpenProjectToolHandlers {
 
   // Work Package handlers
   private async handleGetWorkPackages(args: any) {
-    const validatedArgs = GetWorkPackagesArgsSchema.parse(args);
-    
-    // Add project filter if specified
-    let filters = validatedArgs.filters;
-    if (validatedArgs.projectId) {
-      const projectFilter = `[{"project":{"operator":"=","values":["${validatedArgs.projectId}"]}}]`;
-      filters = filters ? `${filters.slice(0, -1)},${projectFilter.slice(1)}` : projectFilter;
+    try {
+      logger.debug('Validating args for get_work_packages', { args });
+      const validatedArgs = GetWorkPackagesArgsSchema.parse(args);
+      logger.logSchemaValidation('get_work_packages', args);
+      
+      // Add project filter if specified
+      let filters = validatedArgs.filters;
+      if (validatedArgs.projectId) {
+        const projectFilter = `[{"project":{"operator":"=","values":["${validatedArgs.projectId}"]}}]`;
+        filters = filters ? `${filters.slice(0, -1)},${projectFilter.slice(1)}` : projectFilter;
+      }
+      
+      const queryParams = {
+        ...(validatedArgs.offset !== undefined && { offset: validatedArgs.offset }),
+        ...(validatedArgs.pageSize !== undefined && { pageSize: validatedArgs.pageSize }),
+        ...(validatedArgs.sortBy !== undefined && { sortBy: validatedArgs.sortBy }),
+        ...(filters !== undefined && { filters }),
+      };
+      
+      logger.debug('Calling client.getWorkPackages', { queryParams });
+      const result = await this.client.getWorkPackages(queryParams);
+      
+      logger.logRawData('getWorkPackages client result', result);
+      logger.debug('Processing work packages result', {
+        total: result.total,
+        elementsCount: result._embedded?.elements?.length,
+        hasEmbedded: !!result._embedded,
+        resultKeys: Object.keys(result),
+        firstElementKeys: result._embedded?.elements?.[0] ? Object.keys(result._embedded.elements[0]) : undefined
+      });
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Found ${result.total} work packages:\n\n${result._embedded.elements
+              .map((wp: any) => `- ${wp.subject} (ID: ${wp.id}) - Status: ${wp.status?.name || 'Unknown'} - Assignee: ${wp.assignee?.name || 'Unassigned'}`)
+              .join('\n')}`,
+          },
+        ],
+      };
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        logger.logSchemaValidation('get_work_packages', args, error);
+      }
+      throw error;
     }
-    
-    const queryParams = {
-      ...(validatedArgs.offset !== undefined && { offset: validatedArgs.offset }),
-      ...(validatedArgs.pageSize !== undefined && { pageSize: validatedArgs.pageSize }),
-      ...(validatedArgs.sortBy !== undefined && { sortBy: validatedArgs.sortBy }),
-      ...(filters !== undefined && { filters }),
-    };
-    const result = await this.client.getWorkPackages(queryParams);
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Found ${result.total} work packages:\n\n${result._embedded.elements
-            .map((wp: any) => `- ${wp.subject} (ID: ${wp.id}) - Status: ${wp.status?.name || 'Unknown'} - Assignee: ${wp.assignee?.name || 'Unassigned'}`)
-            .join('\n')}`,
-        },
-      ],
-    };
   }
 
   private async handleGetWorkPackage(args: any) {
@@ -325,45 +416,68 @@ export class OpenProjectToolHandlers {
 
   // Search handlers
   private async handleSearch(args: any) {
-    const validatedArgs = SearchArgsSchema.parse(args);
-    const limit = validatedArgs.limit || 10;
-    
-    let result;
-    switch (validatedArgs.type) {
-      case 'projects':
-        result = await this.client.searchProjects(validatedArgs.query, { pageSize: limit });
-        break;
-      case 'work_packages':
-        result = await this.client.searchWorkPackages(validatedArgs.query, { pageSize: limit });
-        break;
-      case 'users':
-        result = await this.client.searchUsers(validatedArgs.query, { pageSize: limit });
-        break;
-      default:
-        throw new Error(`Invalid search type: ${validatedArgs.type}`);
+    try {
+      logger.debug('Validating args for search', { args });
+      const validatedArgs = SearchArgsSchema.parse(args);
+      logger.logSchemaValidation('search', args);
+      
+      const limit = validatedArgs.limit || 10;
+      
+      let result;
+      switch (validatedArgs.type) {
+        case 'projects':
+          logger.debug('Calling client.searchProjects', { query: validatedArgs.query, limit });
+          result = await this.client.searchProjects(validatedArgs.query, { pageSize: limit });
+          break;
+        case 'work_packages':
+          logger.debug('Calling client.searchWorkPackages', { query: validatedArgs.query, limit });
+          result = await this.client.searchWorkPackages(validatedArgs.query, { pageSize: limit });
+          break;
+        case 'users':
+          logger.debug('Calling client.searchUsers', { query: validatedArgs.query, limit });
+          result = await this.client.searchUsers(validatedArgs.query, { pageSize: limit });
+          break;
+        default:
+          throw new Error(`Invalid search type: ${validatedArgs.type}`);
+      }
+      
+      logger.logRawData('search client result', result);
+      logger.debug('Processing search result', {
+        type: validatedArgs.type,
+        query: validatedArgs.query,
+        total: result.total,
+        elementsCount: result._embedded?.elements?.length,
+        hasEmbedded: !!result._embedded,
+        resultKeys: Object.keys(result)
+      });
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Search results for "${validatedArgs.query}" in ${validatedArgs.type}:\n\nFound ${result.total} results:\n\n${result._embedded.elements
+              .map((item: any) => {
+                switch (validatedArgs.type) {
+                  case 'projects':
+                    return `- ${item.name} (ID: ${item.id}) - ${item.description || 'No description'}`;
+                  case 'work_packages':
+                    return `- ${item.subject} (ID: ${item.id}) - Status: ${item.status?.name || 'Unknown'}`;
+                  case 'users':
+                    return `- ${item.name} (ID: ${item.id}) - ${item.email}`;
+                  default:
+                    return `- ${item.name || item.subject} (ID: ${item.id})`;
+                }
+              })
+              .join('\n')}`,
+          },
+        ],
+      };
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        logger.logSchemaValidation('search', args, error);
+      }
+      throw error;
     }
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Search results for "${validatedArgs.query}" in ${validatedArgs.type}:\n\nFound ${result.total} results:\n\n${result._embedded.elements
-            .map((item: any) => {
-              switch (validatedArgs.type) {
-                case 'projects':
-                  return `- ${item.name} (ID: ${item.id}) - ${item.description || 'No description'}`;
-                case 'work_packages':
-                  return `- ${item.subject} (ID: ${item.id}) - Status: ${item.status?.name || 'Unknown'}`;
-                case 'users':
-                  return `- ${item.name} (ID: ${item.id}) - ${item.email}`;
-                default:
-                  return `- ${item.name || item.subject} (ID: ${item.id})`;
-              }
-            })
-            .join('\n')}`,
-        },
-      ],
-    };
   }
 
   // User handlers

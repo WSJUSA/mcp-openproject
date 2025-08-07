@@ -23,6 +23,14 @@ export class Logger {
     this.logFile = process.env['MCP_LOG_FILE'] || 'mcp-openproject.log';
   }
 
+  setLevel(level: LogLevel): void {
+    this.logLevel = level;
+  }
+
+  setLogFile(logFile: string): void {
+    this.logFile = logFile;
+  }
+
   static getInstance(): Logger {
     if (!Logger.instance) {
       Logger.instance = new Logger();
@@ -145,6 +153,20 @@ export class Logger {
       keys: typeof data === 'object' && data ? Object.keys(data) : undefined,
       length: Array.isArray(data) ? data.length : undefined
     });
+  }
+}
+
+// Helper function to parse log level from string
+export function parseLogLevel(level: string | undefined): LogLevel {
+  if (!level) return LogLevel.INFO;
+  
+  const upperLevel = level.toUpperCase();
+  switch (upperLevel) {
+    case 'DEBUG': return LogLevel.DEBUG;
+    case 'INFO': return LogLevel.INFO;
+    case 'WARN': return LogLevel.WARN;
+    case 'ERROR': return LogLevel.ERROR;
+    default: return LogLevel.INFO;
   }
 }
 

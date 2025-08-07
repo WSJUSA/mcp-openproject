@@ -10,6 +10,7 @@ import { OpenProjectClient } from './client/openproject-client.js';
 import { OpenProjectToolHandlers } from './handlers/tool-handlers.js';
 import { createOpenProjectTools } from './tools/index.js';
 import { OpenProjectConfigSchema } from './types/openproject.js';
+import { logger, parseLogLevel } from './utils/logger.js';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -22,6 +23,21 @@ class OpenProjectMCPServer {
   private tools: any[];
 
   constructor() {
+    // Configure logger based on environment
+     const logLevel = parseLogLevel(process.env['LOG_LEVEL']);
+     const logFile = process.env['LOG_FILE'];
+     
+     // Initialize logger with configuration
+     logger.setLevel(logLevel);
+     if (logFile) {
+       logger.setLogFile(logFile);
+     }
+     
+     logger.info('Initializing OpenProject MCP Server', { 
+       logLevel,
+       logFile: logFile || 'console only'
+     });
+
     // Validate configuration
     const config = OpenProjectConfigSchema.parse({
       baseUrl: process.env['OPENPROJECT_BASE_URL'],

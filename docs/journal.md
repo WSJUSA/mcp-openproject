@@ -269,6 +269,71 @@ To publish to a remote repository:
 - Initial commit hash: `d0dacd6`
 - All sensitive files properly excluded via `.gitignore`
 
+---
+
+## 2025-08-07 - Comprehensive Logging Implementation
+
+### Logger Utility Creation
+- Created `src/utils/logger.ts` with comprehensive logging functionality:
+  - `LogLevel` enumeration (DEBUG, INFO, WARN, ERROR)
+  - `Logger` class with singleton pattern
+  - Methods for different log levels with structured data support
+  - Specialized logging methods:
+    - `logApiRequest()` - API request logging with timing
+    - `logApiResponse()` - API response logging with status codes
+    - `logSchemaValidation()` - Schema validation success/failure tracking
+    - `logRawData()` - Raw data inspection for debugging
+  - Environment-based configuration support
+  - Optional file logging capability
+
+### Client Integration
+- Updated `src/client/openproject-client.ts` with comprehensive logging:
+  - API request/response logging for all methods
+  - Error logging with detailed context
+  - Performance timing for API calls
+  - Connection testing with detailed feedback
+
+### Tool Handler Integration
+- Updated `src/handlers/tool-handlers.ts` with extensive logging:
+  - Tool execution start/end logging
+  - Input argument validation logging
+  - Schema validation error tracking
+  - Raw API response data logging
+  - Detailed error reporting with stack traces
+  - Added logging to all handler methods:
+    - `handleGetProjects()` - Project listing with metadata
+    - `handleGetProject()` - Individual project details
+    - `handleGetWorkPackages()` - Work package retrieval
+    - `handleSearch()` - Search functionality
+
+### Server Configuration
+- Updated `src/index.ts` with logger initialization:
+  - Environment-based log level configuration
+  - Optional file logging setup
+  - Server startup logging with configuration details
+
+### Environment Configuration
+- Updated `.env.example` with logging configuration:
+  - `LOG_LEVEL` setting (debug, info, warn, error)
+  - `LOG_FILE` optional file logging path
+  - Clear documentation for logging options
+
+### Troubleshooting Benefits
+This comprehensive logging implementation provides:
+- **Schema Validation Tracking**: Identify exactly where validation fails
+- **API Request/Response Monitoring**: Full visibility into OpenProject API interactions
+- **Performance Monitoring**: Request timing and response analysis
+- **Error Context**: Detailed error information with stack traces
+- **Data Inspection**: Raw API response logging for schema debugging
+- **Configurable Verbosity**: Environment-based log level control
+
+### TypeScript Validation
+- All logging integration passes TypeScript compilation
+- Type-safe logging with proper error handling
+- Singleton logger pattern ensures consistent logging across the application
+
+The MCP server now has comprehensive logging capabilities to troubleshoot the schema validation issues identified in testing, particularly for work package and project detail endpoints.
+
 ## Current Status
 
 ✅ **Server Status**: Running successfully  

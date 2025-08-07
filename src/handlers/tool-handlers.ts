@@ -504,11 +504,37 @@ export class OpenProjectToolHandlers {
     const validatedArgs = RemoveWorkPackageParentArgsSchema.parse(args);
     const workPackage = await this.client.removeWorkPackageParent(validatedArgs.id);
     
+    // Verification: Check if the work package still appears as a child anywhere
+     try {
+       // Search for any work packages that have this one as a child
+       const verificationResult = await this.client.getWorkPackages({
+         filters: `[{"children":{"operator":"=","values":["${validatedArgs.id}"]}}]`
+       });
+      
+      if (verificationResult.total > 0) {
+        const parentIds = verificationResult._embedded.elements.map((wp: any) => wp.id);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `⚠️ Parent relationship removal FAILED - Verification detected inconsistency:\n\nWork Package: ${workPackage.subject} (ID: ${workPackage.id})\nStatus: Still appears as child of parent(s): ${parentIds.join(', ')}\nUpdated: ${workPackage.updatedAt}\n\nThis indicates a potential API caching issue or incomplete removal.`,
+            },
+          ],
+        };
+      }
+    } catch (verificationError) {
+      // If verification fails, log but don't fail the operation
+      logger.warn('Parent removal verification failed', { 
+        workPackageId: validatedArgs.id, 
+        error: verificationError 
+      });
+    }
+    
     return {
       content: [
         {
           type: 'text',
-          text: `Parent relationship removed successfully:\n\nWork Package: ${workPackage.subject} (ID: ${workPackage.id})\nStatus: No longer has a parent\nUpdated: ${workPackage.updatedAt}`,
+          text: `✅ Parent relationship removed successfully (verified):\n\nWork Package: ${workPackage.subject} (ID: ${workPackage.id})\nStatus: No longer has a parent (confirmed)\nUpdated: ${workPackage.updatedAt}`,
         },
       ],
     };

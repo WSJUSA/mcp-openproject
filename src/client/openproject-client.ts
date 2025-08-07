@@ -340,6 +340,9 @@ export class OpenProjectClient {
         subject: response.data.subject
       });
       
+      // Add a small delay to ensure API consistency
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       return WorkPackageSchema.parse(response.data);
     } catch (error: any) {
       const duration = Date.now() - startTime;
@@ -391,6 +394,9 @@ export class OpenProjectClient {
         subject: response.data.subject
       });
       
+      // Add a small delay to ensure API consistency
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       return WorkPackageSchema.parse(response.data);
     } catch (error: any) {
       const duration = Date.now() - startTime;
@@ -410,7 +416,11 @@ export class OpenProjectClient {
     try {
       // Use filters to get children of the specified parent work package
       const filters = `[{"parent":{"operator":"=","values":["${id}"]}}]`;
-      const params = { filters };
+      // Add cache-busting timestamp to ensure fresh data
+      const params = { 
+        filters,
+        _t: Date.now().toString() // Cache-busting parameter
+      };
       
       logger.debug('Getting work package children', { parentId: id, filters });
       

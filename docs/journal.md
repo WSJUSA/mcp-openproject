@@ -1,5 +1,33 @@
 # Development Journal - OpenProject MCP Server
 
+## 2025-08-08 - Hierarchy Verification Mechanism
+
+### Bug Fix: Work Package Parent-Child Relationship Verification
+- **Issue**: `remove_work_package_parent` tool was not properly verifying successful parent removal
+- **Root Cause**: OpenProject API caching or delayed consistency causing false positive results
+- **Solution Implemented**:
+  - Added verification step in `handleRemoveWorkPackageParent` method
+  - After removal, queries OpenProject API to check if work package still appears as child
+  - Returns detailed success/failure status with verification confirmation
+  - Added 100ms delays in both `removeWorkPackageParent` and `setWorkPackageParent` for API consistency
+  - Implemented cache-busting in `getWorkPackageChildren` method
+
+### Files Modified
+- `src/handlers/tool-handlers.ts` - Enhanced `handleRemoveWorkPackageParent` with verification logic
+- `src/client/openproject-client.ts` - Added delays and cache-busting for API consistency
+
+### Testing Results
+- ✅ Work package 207 parent removal now properly verified
+- ✅ Work package 209 children query returns accurate results (only WP 215)
+- ✅ No more false positive hierarchy relationships
+
+### Technical Details
+- Verification uses OpenProject's children filter: `{"children":{"operator":"=","values":["${id}"]}}`
+- Success message now includes "(verified)" confirmation
+- Error handling for verification failures with detailed logging
+
+---
+
 ## 2025-08-07 - Initial Project Creation
 
 ### Project Setup

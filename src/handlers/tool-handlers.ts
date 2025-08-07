@@ -342,11 +342,13 @@ export class OpenProjectToolHandlers {
     const validatedArgs = GetWorkPackageArgsSchema.parse(args);
     const workPackage = await this.client.getWorkPackage(validatedArgs.id);
     
+    logger.debug('Full work package data retrieved', { workPackage, lockVersion: workPackage.lockVersion });
+    
     return {
       content: [
         {
           type: 'text',
-          text: `Work Package Details:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nDescription: ${workPackage.description || 'No description'}\nProject: ${workPackage.project?.name || 'Unknown'}\nType: ${workPackage.type?.name || 'Unknown'}\nStatus: ${workPackage.status?.name || 'Unknown'}\nPriority: ${workPackage.priority?.name || 'No priority'}\nAssignee: ${workPackage.assignee?.name || 'Unassigned'}\nProgress: ${workPackage.percentageDone || 0}%\nStart Date: ${workPackage.startDate || 'Not set'}\nDue Date: ${workPackage.dueDate || 'Not set'}\nEstimated Time: ${workPackage.estimatedTime || 'Not set'}\nSpent Time: ${workPackage.spentTime || 'Not set'}\nCreated: ${workPackage.createdAt}\nUpdated: ${workPackage.updatedAt}`,
+          text: `Work Package Details:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nDescription: ${workPackage.description || 'No description'}\nProject: ${workPackage.project?.name || 'Unknown'}\nType: ${workPackage.type?.name || 'Unknown'}\nStatus: ${workPackage.status?.name || 'Unknown'}\nPriority: ${workPackage.priority?.name || 'No priority'}\nAssignee: ${workPackage.assignee?.name || 'Unassigned'}\nProgress: ${workPackage.percentageDone || 0}%\nStart Date: ${workPackage.startDate || 'Not set'}\nDue Date: ${workPackage.dueDate || 'Not set'}\nEstimated Time: ${workPackage.estimatedTime || 'Not set'}\nSpent Time: ${workPackage.spentTime || 'Not set'}\nLock Version: ${workPackage.lockVersion || 'Not available'}\nCreated: ${workPackage.createdAt}\nUpdated: ${workPackage.updatedAt}`,
         },
       ],
     };

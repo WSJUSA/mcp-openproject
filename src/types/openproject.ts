@@ -80,6 +80,7 @@ export const WorkPackageSchema = z.object({
   }).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  lockVersion: z.number(),
   _type: z.literal('WorkPackage'),
   _links: z.record(z.any()).optional(),
 });

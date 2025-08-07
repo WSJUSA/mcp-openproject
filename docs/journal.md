@@ -395,6 +395,38 @@ All OpenProject MCP tools are now fully functional and tested. The integration i
 
 The MCP server has been thoroughly tested and all operations are working correctly with proper schema validation.
 
+---
+
+## 2025-08-07 - Work Package Update Investigation
+
+### ETag Implementation for Work Package Updates
+- **Issue**: Work package updates were failing with "conflicting modifications" error
+- **Root Cause**: Missing optimistic locking mechanism in updateWorkPackage method
+- **Solution**: Implemented ETag-based optimistic locking
+  - Modified `updateWorkPackage` method in `src/client/openproject-client.ts`
+  - Added ETag retrieval from initial GET request
+  - Included ETag in subsequent PATCH request headers
+- **Files Modified**:
+  - `src/client/openproject-client.ts`: Added ETag handling logic
+- **Status**: ❌ ETag approach failed - OpenProject uses lockVersion instead
+
+### LockVersion Implementation Investigation (Evening)
+- **Issue**: ETag approach didn't resolve "conflicting modifications" error
+- **Research**: Web search revealed OpenProject uses `lockVersion` field for optimistic locking
+- **Implementation Attempts**:
+  - Switched from ETag headers to `lockVersion` field in request payload
+  - Added `lockVersion` field to `WorkPackageSchema` in `src/types/openproject.ts`
+  - Enhanced logging to debug the lockVersion retrieval and usage
+- **Files Modified**:
+  - `src/client/openproject-client.ts`: Replaced ETag with lockVersion logic
+  - `src/types/openproject.ts`: Added lockVersion field to schema
+  - `src/handlers/tool-handlers.ts`: Added lockVersion to output and debug logging
+- **Current Status**: 🔍 Still investigating - lockVersion field may not be present in API response
+- **Next Steps**: 
+  - Verify actual API response structure
+  - Check if lockVersion is returned by OpenProject API
+  - Consider alternative approaches if lockVersion is not available
+
 ## Current Status
 
 ✅ **Server Status**: Running successfully  
@@ -402,5 +434,6 @@ The MCP server has been thoroughly tested and all operations are working correct
 ✅ **API Connection**: Connected to OpenProject instance  
 ✅ **Documentation**: Complete usage guide added to README.md  
 ✅ **Git Repository**: Initialized and ready for publishing  
+🔍 **Work Package Updates**: Under investigation for optimistic locking
 
 The OpenProject MCP server is now fully operational and ready for use with AI agents.

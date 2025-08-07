@@ -196,6 +196,7 @@ export class OpenProjectClient {
 
   async getWorkPackage(id: number): Promise<WorkPackage> {
     const response = await this.axiosInstance.get(`/work_packages/${id}`);
+    logger.debug('Raw work package API response', { id, responseData: response.data });
     return WorkPackageSchema.parse(response.data);
   }
 
@@ -205,7 +206,66 @@ export class OpenProjectClient {
   }
 
   async updateWorkPackage(id: number, workPackageData: Partial<WorkPackage>): Promise<WorkPackage> {
-    const response = await this.axiosInstance.patch(`/work_packages/${id}`, workPackageData);
+    // First, get the current work package to retrieve the lockVersion for optimistic locking
+    logger.debug(`Getting current work package ${id} for lockVersion`, { id });
+    const currentResponse = await this.axiosInstance.get(`/work_packages/${id}`);
+    const currentWorkPackage = currentResponse.data;
+    const lockVersion = currentWorkPackage.lockVersion;
+    
+    logger.debug('LockVersion retrieved for work package update', { id, lockVersion, hasLockVersion: !!lockVersion, fullData: currentWorkPackage });
+    
+    // Build the update payload in OpenProject API format
+    const updatePayload: any = {
+      lockVersion: lockVersion
+    };
+    
+    // Handle status updates with _links format
+    if (workPackageData.status?.id) {
+      updatePayload._links = {
+        status: {
+          href: `/api/v3/statuses/${workPackageData.status.id}`
+        }
+      };
+    }
+    
+    // Add other direct field updates
+    if (workPackageData.subject !== undefined) {
+      updatePayload.subject = workPackageData.subject;
+    }
+    if (workPackageData.description !== undefined) {
+      updatePayload.description = workPackageData.description;
+    }
+    if (workPackageData.percentageDone !== undefined) {
+      updatePayload.percentageDone = workPackageData.percentageDone;
+    }
+    if (workPackageData.startDate !== undefined) {
+      updatePayload.startDate = workPackageData.startDate;
+    }
+    if (workPackageData.dueDate !== undefined) {
+      updatePayload.dueDate = workPackageData.dueDate;
+    }
+    if (workPackageData.estimatedTime !== undefined) {
+      updatePayload.estimatedTime = workPackageData.estimatedTime;
+    }
+    
+    // Handle other _links relationships
+    if (workPackageData.assignee?.id) {
+      updatePayload._links = updatePayload._links || {};
+      updatePayload._links.assignee = {
+        href: `/api/v3/users/${workPackageData.assignee.id}`
+      };
+    }
+    
+    if (workPackageData.priority?.id) {
+      updatePayload._links = updatePayload._links || {};
+      updatePayload._links.priority = {
+        href: `/api/v3/priorities/${workPackageData.priority.id}`
+      };
+    }
+    
+    logger.debug('Updating work package with proper API format', { id, updatePayload });
+    
+    const response = await this.axiosInstance.patch(`/work_packages/${id}`, updatePayload);
     return WorkPackageSchema.parse(response.data);
   }
 

@@ -40,36 +40,44 @@ export const ProjectSchema = z.object({
 export const WorkPackageSchema = z.object({
   id: z.number(),
   subject: z.string(),
-  description: z.string().nullable(),
+  description: z.union([
+    z.string(),
+    z.object({
+      format: z.string(),
+      raw: z.string(),
+      html: z.string().optional(),
+    }),
+    z.null()
+  ]).optional(),
   startDate: z.string().nullable(),
   dueDate: z.string().nullable(),
   estimatedTime: z.string().nullable(),
-  spentTime: z.string().nullable(),
-  percentageDone: z.number(),
+  spentTime: z.string().nullable().optional(),
+  percentageDone: z.number().nullable().optional(),
   priority: z.object({
     id: z.number(),
     name: z.string(),
-  }).nullable(),
+  }).nullable().optional(),
   status: z.object({
     id: z.number(),
     name: z.string(),
-  }),
+  }).optional(),
   type: z.object({
     id: z.number(),
     name: z.string(),
-  }),
+  }).optional(),
   assignee: z.object({
     id: z.number(),
     name: z.string(),
-  }).nullable(),
+  }).nullable().optional(),
   responsible: z.object({
     id: z.number(),
     name: z.string(),
-  }).nullable(),
+  }).nullable().optional(),
   project: z.object({
     id: z.number(),
     name: z.string(),
-  }),
+  }).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   _type: z.literal('WorkPackage'),

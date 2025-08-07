@@ -346,7 +346,7 @@ export class OpenProjectToolHandlers {
       content: [
         {
           type: 'text',
-          text: `Work Package Details:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nDescription: ${workPackage.description || 'No description'}\nProject: ${workPackage.project.name}\nType: ${workPackage.type.name}\nStatus: ${workPackage.status.name}\nPriority: ${workPackage.priority?.name || 'No priority'}\nAssignee: ${workPackage.assignee?.name || 'Unassigned'}\nProgress: ${workPackage.percentageDone}%\nStart Date: ${workPackage.startDate || 'Not set'}\nDue Date: ${workPackage.dueDate || 'Not set'}\nEstimated Time: ${workPackage.estimatedTime || 'Not set'}\nSpent Time: ${workPackage.spentTime || 'Not set'}\nCreated: ${workPackage.createdAt}\nUpdated: ${workPackage.updatedAt}`,
+          text: `Work Package Details:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nDescription: ${workPackage.description || 'No description'}\nProject: ${workPackage.project?.name || 'Unknown'}\nType: ${workPackage.type?.name || 'Unknown'}\nStatus: ${workPackage.status?.name || 'Unknown'}\nPriority: ${workPackage.priority?.name || 'No priority'}\nAssignee: ${workPackage.assignee?.name || 'Unassigned'}\nProgress: ${workPackage.percentageDone || 0}%\nStart Date: ${workPackage.startDate || 'Not set'}\nDue Date: ${workPackage.dueDate || 'Not set'}\nEstimated Time: ${workPackage.estimatedTime || 'Not set'}\nSpent Time: ${workPackage.spentTime || 'Not set'}\nCreated: ${workPackage.createdAt}\nUpdated: ${workPackage.updatedAt}`,
         },
       ],
     };
@@ -377,7 +377,7 @@ export class OpenProjectToolHandlers {
       content: [
         {
           type: 'text',
-          text: `Work package created successfully:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nProject: ${workPackage.project.name}\nType: ${workPackage.type.name}\nStatus: ${workPackage.status.name}`,
+          text: `Work package created successfully:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nProject: ${workPackage.project?.name || 'Unknown'}\nType: ${workPackage.type?.name || 'Unknown'}\nStatus: ${workPackage.status?.name || 'Unknown'}`,
         },
       ],
     };
@@ -408,7 +408,7 @@ export class OpenProjectToolHandlers {
       content: [
         {
           type: 'text',
-          text: `Work package updated successfully:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nStatus: ${workPackage.status.name}\nProgress: ${workPackage.percentageDone}%\nUpdated: ${workPackage.updatedAt}`,
+          text: `Work package updated successfully:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nStatus: ${workPackage.status?.name || 'Unknown'}\nProgress: ${workPackage.percentageDone || 0}%\nUpdated: ${workPackage.updatedAt}`,
         },
       ],
     };

@@ -70,6 +70,10 @@ const UpdateWorkPackageArgsSchema = z.object({
   percentageDone: z.number().optional(),
 });
 
+const DeleteWorkPackageArgsSchema = z.object({
+  id: z.number(),
+});
+
 const SearchArgsSchema = z.object({
   query: z.string(),
   type: z.enum(['projects', 'work_packages', 'users']),
@@ -357,6 +361,20 @@ export function createOpenProjectTools(): Tool[] {
         required: ['id'],
       },
     },
+    {
+      name: 'delete_work_package',
+      description: 'Delete a work package from OpenProject',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Work package ID',
+          },
+        },
+        required: ['id'],
+      },
+    },
 
     // Search tools
     {
@@ -514,6 +532,7 @@ export {
   GetWorkPackageArgsSchema,
   CreateWorkPackageArgsSchema,
   UpdateWorkPackageArgsSchema,
+  DeleteWorkPackageArgsSchema,
   SearchArgsSchema,
   GetUsersArgsSchema,
   GetTimeEntriesArgsSchema,

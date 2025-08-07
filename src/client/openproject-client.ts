@@ -206,67 +206,92 @@ export class OpenProjectClient {
   }
 
   async updateWorkPackage(id: number, workPackageData: Partial<WorkPackage>): Promise<WorkPackage> {
-    // First, get the current work package to retrieve the lockVersion for optimistic locking
-    logger.debug(`Getting current work package ${id} for lockVersion`, { id });
-    const currentResponse = await this.axiosInstance.get(`/work_packages/${id}`);
-    const currentWorkPackage = currentResponse.data;
-    const lockVersion = currentWorkPackage.lockVersion;
+    const startTime = Date.now();
+    const url = `/work_packages/${id}`;
     
-    logger.debug('LockVersion retrieved for work package update', { id, lockVersion, hasLockVersion: !!lockVersion, fullData: currentWorkPackage });
-    
-    // Build the update payload in OpenProject API format
-    const updatePayload: any = {
-      lockVersion: lockVersion
-    };
-    
-    // Handle status updates with _links format
-    if (workPackageData.status?.id) {
-      updatePayload._links = {
-        status: {
-          href: `/api/v3/statuses/${workPackageData.status.id}`
+    try {
+      // First, get the current work package to retrieve the lockVersion for optimistic locking
+      logger.debug(`Getting current work package ${id} for lockVersion`, { id });
+      const currentResponse = await this.axiosInstance.get(url);
+      const currentWorkPackage = currentResponse.data;
+      const lockVersion = currentWorkPackage.lockVersion;
+      
+      logger.debug('LockVersion retrieved for work package update', { 
+        id, 
+        lockVersion, 
+        hasLockVersion: !!lockVersion, 
+        currentStatus: currentWorkPackage._links?.status?.title,
+        currentAssignee: currentWorkPackage._links?.assignee?.title
+      });
+      
+      // Build the update payload exactly like the working script
+      const updatePayload: any = {
+        lockVersion: lockVersion,
+        ...workPackageData // Spread all the update data directly
+      };
+      
+      // Remove nested objects that need special handling
+      if (updatePayload.status) delete updatePayload.status;
+      if (updatePayload.assignee) delete updatePayload.assignee;
+      if (updatePayload.priority) delete updatePayload.priority;
+      
+      // Only add _links if we have relationship updates
+      const needsLinks = workPackageData.status?.id || workPackageData.assignee?.id || workPackageData.priority?.id;
+      if (needsLinks) {
+        updatePayload._links = {};
+        
+        // Handle status updates with correct URL format (no double /api/v3)
+        if (workPackageData.status?.id) {
+          const baseUrl = this.axiosInstance.defaults.baseURL?.replace('/api/v3', '') || '';
+          updatePayload._links.status = {
+            href: `${baseUrl}/api/v3/statuses/${workPackageData.status.id}`
+          };
         }
-      };
+        
+        // Handle assignee updates with correct URL format
+        if (workPackageData.assignee?.id) {
+          const baseUrl = this.axiosInstance.defaults.baseURL?.replace('/api/v3', '') || '';
+          updatePayload._links.assignee = {
+            href: `${baseUrl}/api/v3/users/${workPackageData.assignee.id}`
+          };
+        }
+        
+        // Handle priority updates with correct URL format
+        if (workPackageData.priority?.id) {
+          const baseUrl = this.axiosInstance.defaults.baseURL?.replace('/api/v3', '') || '';
+          updatePayload._links.priority = {
+            href: `${baseUrl}/api/v3/priorities/${workPackageData.priority.id}`
+          };
+        }
+      }
+      
+      logger.logApiRequest('PATCH', url, updatePayload, { id, lockVersion });
+      logger.debug('Updating work package with proper API format', { id, updatePayload });
+      
+      const response = await this.axiosInstance.patch(url, updatePayload);
+      
+      logger.logApiResponse('PATCH', url, response.status, response.headers, response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`updateWorkPackage completed successfully (${duration}ms)`, {
+        id,
+        lockVersion,
+        updatedFields: Object.keys(workPackageData),
+        newLockVersion: response.data.lockVersion
+      });
+      
+      return WorkPackageSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`updateWorkPackage failed (${duration}ms)`, {
+        id,
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        workPackageData
+      });
+      throw error;
     }
-    
-    // Add other direct field updates
-    if (workPackageData.subject !== undefined) {
-      updatePayload.subject = workPackageData.subject;
-    }
-    if (workPackageData.description !== undefined) {
-      updatePayload.description = workPackageData.description;
-    }
-    if (workPackageData.percentageDone !== undefined) {
-      updatePayload.percentageDone = workPackageData.percentageDone;
-    }
-    if (workPackageData.startDate !== undefined) {
-      updatePayload.startDate = workPackageData.startDate;
-    }
-    if (workPackageData.dueDate !== undefined) {
-      updatePayload.dueDate = workPackageData.dueDate;
-    }
-    if (workPackageData.estimatedTime !== undefined) {
-      updatePayload.estimatedTime = workPackageData.estimatedTime;
-    }
-    
-    // Handle other _links relationships
-    if (workPackageData.assignee?.id) {
-      updatePayload._links = updatePayload._links || {};
-      updatePayload._links.assignee = {
-        href: `/api/v3/users/${workPackageData.assignee.id}`
-      };
-    }
-    
-    if (workPackageData.priority?.id) {
-      updatePayload._links = updatePayload._links || {};
-      updatePayload._links.priority = {
-        href: `/api/v3/priorities/${workPackageData.priority.id}`
-      };
-    }
-    
-    logger.debug('Updating work package with proper API format', { id, updatePayload });
-    
-    const response = await this.axiosInstance.patch(`/work_packages/${id}`, updatePayload);
-    return WorkPackageSchema.parse(response.data);
   }
 
   async deleteWorkPackage(id: number): Promise<void> {

@@ -11,6 +11,7 @@ import {
   GetWorkPackageArgsSchema,
   CreateWorkPackageArgsSchema,
   UpdateWorkPackageArgsSchema,
+  DeleteWorkPackageArgsSchema,
   SearchArgsSchema,
   GetUsersArgsSchema,
   GetTimeEntriesArgsSchema,
@@ -59,6 +60,9 @@ export class OpenProjectToolHandlers {
           break;
         case 'update_work_package':
           result = await this.handleUpdateWorkPackage(args);
+          break;
+        case 'delete_work_package':
+          result = await this.handleDeleteWorkPackage(args);
           break;
 
         // Search handlers
@@ -389,20 +393,27 @@ export class OpenProjectToolHandlers {
     const validatedArgs = UpdateWorkPackageArgsSchema.parse(args);
     const { id, ...updateData } = validatedArgs;
     
-    // Transform the arguments to match OpenProject API format
-    const workPackageData = {
-      ...(updateData.subject !== undefined && { subject: updateData.subject }),
-      ...(updateData.description !== undefined && { description: updateData.description }),
-      ...(updateData.startDate !== undefined && { startDate: updateData.startDate }),
-      ...(updateData.dueDate !== undefined && { dueDate: updateData.dueDate }),
-      ...(updateData.estimatedTime !== undefined && { estimatedTime: updateData.estimatedTime }),
-      ...(updateData.percentageDone !== undefined && { percentageDone: updateData.percentageDone }),
-      _links: {
-        ...(updateData.statusId && { status: { href: `/api/v3/statuses/${updateData.statusId}` } }),
-        ...(updateData.priorityId && { priority: { href: `/api/v3/priorities/${updateData.priorityId}` } }),
-        ...(updateData.assigneeId && { assignee: { href: `/api/v3/users/${updateData.assigneeId}` } }),
-      },
-    };
+    // Transform the arguments to match the client's expected format
+    const workPackageData: any = {};
+    
+    // Add direct field updates
+    if (updateData.subject !== undefined) workPackageData.subject = updateData.subject;
+    if (updateData.description !== undefined) workPackageData.description = updateData.description;
+    if (updateData.startDate !== undefined) workPackageData.startDate = updateData.startDate;
+    if (updateData.dueDate !== undefined) workPackageData.dueDate = updateData.dueDate;
+    if (updateData.estimatedTime !== undefined) workPackageData.estimatedTime = updateData.estimatedTime;
+    if (updateData.percentageDone !== undefined) workPackageData.percentageDone = updateData.percentageDone;
+    
+    // Add relationship updates in the format expected by the client
+    if (updateData.statusId) {
+      workPackageData.status = { id: updateData.statusId };
+    }
+    if (updateData.priorityId) {
+      workPackageData.priority = { id: updateData.priorityId };
+    }
+    if (updateData.assigneeId) {
+      workPackageData.assignee = { id: updateData.assigneeId };
+    }
     
     const workPackage = await this.client.updateWorkPackage(id, workPackageData);
     
@@ -411,6 +422,20 @@ export class OpenProjectToolHandlers {
         {
           type: 'text',
           text: `Work package updated successfully:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nStatus: ${workPackage.status?.name || 'Unknown'}\nProgress: ${workPackage.percentageDone || 0}%\nUpdated: ${workPackage.updatedAt}`,
+        },
+      ],
+    };
+  }
+
+  private async handleDeleteWorkPackage(args: any) {
+    const validatedArgs = DeleteWorkPackageArgsSchema.parse(args);
+    await this.client.deleteWorkPackage(validatedArgs.id);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Work package with ID ${validatedArgs.id} has been deleted successfully.`,
         },
       ],
     };
@@ -580,7 +605,7 @@ export class OpenProjectToolHandlers {
       content: [
         {
           type: 'text',
-          text: `Time entry created successfully:\n\nHours: ${timeEntry.hours}\nDate: ${timeEntry.spentOn}\nActivity: ${timeEntry.activity.name}\nProject: ${timeEntry.project.name}\nComment: ${timeEntry.comment || 'No comment'}\nID: ${timeEntry.id}`,
+          text: `Time entry created successfully:\n\nHours: ${timeEntry.hours}\nDate: ${timeEntry.spentOn}\nActivity: ${timeEntry._embedded?.activity?.name || 'N/A'}\nProject: ${timeEntry._embedded?.project?.name || 'N/A'}\nComment: ${typeof timeEntry.comment === 'object' && timeEntry.comment ? timeEntry.comment.raw : timeEntry.comment || 'No comment'}\nID: ${timeEntry.id}`,
         },
       ],
     };

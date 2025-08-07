@@ -106,28 +106,72 @@ export const UserSchema = z.object({
 // Time Entry schemas
 export const TimeEntrySchema = z.object({
   id: z.number(),
-  comment: z.string().nullable(),
+  ongoing: z.boolean().optional(),
+  comment: z.union([
+    z.string(),
+    z.object({
+      format: z.string(),
+      raw: z.string(),
+      html: z.string().optional(),
+    }),
+    z.null()
+  ]).optional(),
   spentOn: z.string(),
   hours: z.string(),
-  activity: z.object({
-    id: z.number(),
-    name: z.string(),
-  }),
-  project: z.object({
-    id: z.number(),
-    name: z.string(),
-  }),
-  workPackage: z.object({
-    id: z.number(),
-    subject: z.string(),
-  }).nullable(),
-  user: z.object({
-    id: z.number(),
-    name: z.string(),
-  }),
   createdAt: z.string(),
   updatedAt: z.string(),
   _type: z.literal('TimeEntry'),
+  _embedded: z.object({
+    activity: z.object({
+      _type: z.string(),
+      id: z.number(),
+      name: z.string(),
+      position: z.number().optional(),
+      default: z.boolean().optional(),
+      _links: z.record(z.any()).optional(),
+    }).optional(),
+    project: z.object({
+      _type: z.string(),
+      id: z.number(),
+      name: z.string(),
+      identifier: z.string().optional(),
+      active: z.boolean().optional(),
+      public: z.boolean().optional(),
+      description: z.union([
+        z.string(),
+        z.object({
+          format: z.string(),
+          raw: z.string(),
+          html: z.string().optional(),
+        }),
+        z.null()
+      ]).optional(),
+      _links: z.record(z.any()).optional(),
+    }).optional(),
+    workPackage: z.object({
+      _type: z.string(),
+      id: z.number(),
+      subject: z.string(),
+      _links: z.record(z.any()).optional(),
+    }).nullable().optional(),
+    user: z.object({
+      _type: z.string(),
+      id: z.number(),
+      name: z.string(),
+      login: z.string().optional(),
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+      email: z.string().optional(),
+      admin: z.boolean().optional(),
+      avatar: z.string().nullable().optional(),
+      status: z.string().optional(),
+      identityUrl: z.string().nullable().optional(),
+      language: z.string().optional(),
+      createdAt: z.string().optional(),
+      updatedAt: z.string().optional(),
+      _links: z.record(z.any()).optional(),
+    }).optional(),
+  }).optional(),
   _links: z.record(z.any()).optional(),
 });
 

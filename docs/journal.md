@@ -563,6 +563,164 @@ The OpenProject MCP server is now fully operational and ready for use with AI ag
 
 ---
 
+## 2025-08-08: Kanban Board Management Implementation
+
+### 📋 Problem Description
+- Missing Kanban board management functionality for OpenProject
+- No way to create, read, update, or delete boards
+- Unable to manage board widgets (columns) dynamically
+- No integration with OpenProject's Grid API for board operations
+
+### 🔍 Root Cause Analysis
+1. **Missing Schemas**: No schemas for Grid/Board operations
+2. **Missing Tool Definitions**: No tools for board management
+3. **Missing Client Methods**: No client methods for Grid API operations
+4. **Missing Handlers**: No handler methods for board management
+
+### ✅ Solution Implemented
+
+1. **Added Board/Grid Schemas** in `src/types/openproject.ts`:
+   ```typescript
+   const GridWidgetSchema = z.object({
+     identifier: z.string(),
+     startRow: z.number(),
+     endRow: z.number(),
+     startColumn: z.number(),
+     endColumn: z.number(),
+     options: z.record(z.any()).optional(),
+   });
+   
+   const GridSchema = z.object({
+     id: z.number(),
+     name: z.string().optional(),
+     scope: z.string().optional(),
+     widgets: z.array(GridWidgetSchema).optional(),
+     _links: z.record(z.any()).optional(),
+   });
+   
+   const BoardSchema = GridSchema; // Boards are grids with board scope
+   ```
+
+2. **Added board management tool definitions** in `src/tools/index.ts`:
+   - `get_boards` - List boards from a project
+   - `get_board` - Get specific board details
+   - `create_board` - Create new Kanban board
+   - `update_board` - Update existing board
+   - `delete_board` - Delete board
+   - `add_board_widget` - Add widget (column) to board
+   - `remove_board_widget` - Remove widget from board
+
+3. **Added client methods** in `src/client/openproject-client.ts`:
+   - `getGrids()` - GET /api/v3/grids with filtering
+   - `getGrid(id)` - GET /api/v3/grids/{id}
+   - `createGrid(data)` - POST /api/v3/grids
+   - `updateGrid(id, data)` - PATCH /api/v3/grids/{id}
+   - `deleteGrid(id)` - DELETE /api/v3/grids/{id}
+   - Board-specific wrapper methods for better semantics
+
+4. **Added handler methods** in `src/handlers/tool-handlers.ts`:
+   - `handleGetBoards` with project filtering
+   - `handleGetBoard` with schema validation
+   - `handleCreateBoard` with board creation logic
+   - `handleUpdateBoard` with optimistic locking
+   - `handleDeleteBoard` with confirmation
+   - `handleAddBoardWidget` and `handleRemoveBoardWidget` for dynamic column management
+   - Added cases in switch statement for all board tools
+
+### 📊 Testing Results
+- ✅ Successfully retrieved boards from project
+- ✅ Board creation working with proper Grid API integration
+- ✅ Widget management functional for dynamic columns
+- ✅ Schema validation working correctly
+- ✅ Clean TypeScript build
+- ✅ Proper error handling for missing boards
+
+### 📋 Status
+**COMPLETE** ✅ - Kanban board management tools are fully implemented and functional. OpenProject boards can now be managed through the MCP interface using the Grid API.
+
+## 2025-08-08: Work Package Parent-Child Relationship Tools Implementation
+
+### 📋 Problem Description
+- Missing parent-child relationship management tools for work packages
+- No way to create hierarchical work package structures
+- Unable to query child work packages or manage parent relationships
+
+### 🔍 Root Cause Analysis
+1. **Missing Schemas**: No schemas for parent-child relationship operations
+2. **Missing Tool Definitions**: No tools for parent/child management
+3. **Missing Client Methods**: No client methods for relationship operations
+4. **Missing Handlers**: No handler methods for relationship management
+
+### ✅ Solution Implemented
+
+1. **Added Parent-Child Relationship Schemas** in `src/tools/index.ts`:
+   ```typescript
+   const SetWorkPackageParentArgsSchema = z.object({
+     id: z.number(),
+     parentId: z.number(),
+   });
+   
+   const RemoveWorkPackageParentArgsSchema = z.object({
+     id: z.number(),
+   });
+   
+   const GetWorkPackageChildrenArgsSchema = z.object({
+     id: z.number(),
+   });
+   ```
+
+2. **Added parent-child relationship tool definitions** in `src/tools/index.ts`:
+   - `set_work_package_parent` - Create parent-child relationships
+   - `remove_work_package_parent` - Remove parent relationships
+   - `get_work_package_children` - Retrieve child work packages
+
+3. **Added client methods** in `src/client/openproject-client.ts`:
+   - `setWorkPackageParent(id, parentId)` using PATCH with `_links.parent`
+   - `removeWorkPackageParent(id)` setting `_links.parent` to null
+   - `getWorkPackageChildren(id)` using filtered work package queries
+
+4. **Added handler methods** in `src/handlers/tool-handlers.ts`:
+   - `handleSetWorkPackageParent` with schema validation
+   - `handleRemoveWorkPackageParent` with schema validation
+   - `handleGetWorkPackageChildren` with schema validation
+   - Added cases in switch statement for all three new tools
+
+### 📊 Testing Results
+- ✅ Successfully set work package 3 as child of work package 2
+- ✅ Successfully retrieved children of work package 2 (IDs: 3, 7, 8)
+- ✅ **FIXED**: `remove_work_package_parent` now working correctly after API payload fix
+
+#### Bug Fix (2025-08-08 00:53)
+**Problem**: The `removeWorkPackageParent` method was not properly removing parent relationships. Work packages remained as children even after removal.
+
+**Root Cause**: Incorrect API payload format. The method was setting `parent: null` instead of `parent: { href: null }`.
+
+**Solution**: Updated the API payload in `removeWorkPackageParent` method:
+```javascript
+// Before (incorrect)
+_links: {
+  parent: null
+}
+
+// After (correct)
+_links: {
+  parent: {
+    href: null
+  }
+}
+```
+
+**Verification**: 
+- Created debug script to test API calls directly
+- Confirmed parent removal works correctly (children count: 3 → 2)
+- Work package 3 successfully removed as child of work package 2
+- MCP server now returns correct children list (IDs: 7, 8)
+
+All TypeScript compilation passes without errors.
+
+### 📋 Status
+**COMPLETE** ✅ - Parent-child relationship tools are fully implemented and functional. Work package hierarchies can now be managed through the MCP interface.
+
 ## 2025-08-08: Fixed Missing delete_work_package Functionality
 
 ### 📋 Problem Description

@@ -175,6 +175,49 @@ export const TimeEntrySchema = z.object({
   _links: z.record(z.any()).optional(),
 });
 
+// Grid Widget schema for Kanban boards
+export const GridWidgetSchema = z.object({
+  _type: z.literal('GridWidget'),
+  id: z.number(),
+  identifier: z.string(),
+  startRow: z.number(),
+  endRow: z.number(),
+  startColumn: z.number(),
+  endColumn: z.number(),
+  options: z.record(z.any()).optional(),
+  _links: z.record(z.any()).optional(),
+  _embedded: z.object({
+    query: z.object({
+      _type: z.literal('Query'),
+      id: z.number(),
+      name: z.string(),
+      filters: z.array(z.any()).optional(),
+      _links: z.record(z.any()).optional(),
+    }).optional(),
+  }).optional(),
+});
+
+// Grid schema for Kanban boards
+export const GridSchema = z.object({
+  _type: z.literal('Grid'),
+  id: z.number(),
+  rowCount: z.number(),
+  columnCount: z.number(),
+  scope: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  _embedded: z.object({
+    widgets: z.array(GridWidgetSchema),
+  }),
+  _links: z.record(z.any()).optional(),
+});
+
+// Board schema (extends Grid)
+export const BoardSchema = GridSchema.extend({
+  name: z.string().optional(),
+  description: z.string().optional(),
+});
+
 // Collection response schema - OpenProject uses different _type values for different collections
 export const CollectionResponseSchema = z.object({
   _type: z.union([
@@ -182,7 +225,8 @@ export const CollectionResponseSchema = z.object({
     z.literal('WorkPackageCollection'),
     z.literal('ProjectCollection'),
     z.literal('UserCollection'),
-    z.literal('TimeEntryCollection')
+    z.literal('TimeEntryCollection'),
+    z.literal('GridCollection')
   ]),
   total: z.number(),
   count: z.number(),
@@ -207,6 +251,9 @@ export type Project = z.infer<typeof ProjectSchema>;
 export type WorkPackage = z.infer<typeof WorkPackageSchema>;
 export type User = z.infer<typeof UserSchema>;
 export type TimeEntry = z.infer<typeof TimeEntrySchema>;
+export type GridWidget = z.infer<typeof GridWidgetSchema>;
+export type Grid = z.infer<typeof GridSchema>;
+export type Board = z.infer<typeof BoardSchema>;
 export type CollectionResponse = z.infer<typeof CollectionResponseSchema>;
 export type OpenProjectConfig = z.infer<typeof OpenProjectConfigSchema>;
 

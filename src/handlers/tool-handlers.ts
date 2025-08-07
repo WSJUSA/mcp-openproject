@@ -12,10 +12,20 @@ import {
   CreateWorkPackageArgsSchema,
   UpdateWorkPackageArgsSchema,
   DeleteWorkPackageArgsSchema,
+  SetWorkPackageParentArgsSchema,
+  RemoveWorkPackageParentArgsSchema,
+  GetWorkPackageChildrenArgsSchema,
   SearchArgsSchema,
   GetUsersArgsSchema,
   GetTimeEntriesArgsSchema,
   CreateTimeEntryArgsSchema,
+  GetBoardsArgsSchema,
+  GetBoardArgsSchema,
+  CreateBoardArgsSchema,
+  UpdateBoardArgsSchema,
+  DeleteBoardArgsSchema,
+  AddBoardWidgetArgsSchema,
+  RemoveBoardWidgetArgsSchema,
 } from '../tools/index.js';
 
 export class OpenProjectToolHandlers {
@@ -65,6 +75,17 @@ export class OpenProjectToolHandlers {
           result = await this.handleDeleteWorkPackage(args);
           break;
 
+        // Work Package Parent-Child Relationship handlers
+        case 'set_work_package_parent':
+          result = await this.handleSetWorkPackageParent(args);
+          break;
+        case 'remove_work_package_parent':
+          result = await this.handleRemoveWorkPackageParent(args);
+          break;
+        case 'get_work_package_children':
+          result = await this.handleGetWorkPackageChildren(args);
+          break;
+
         // Search handlers
         case 'search':
           result = await this.handleSearch(args);
@@ -84,6 +105,29 @@ export class OpenProjectToolHandlers {
           break;
         case 'create_time_entry':
           result = await this.handleCreateTimeEntry(args);
+          break;
+
+        // Board handlers
+        case 'get_boards':
+          result = await this.handleGetBoards(args);
+          break;
+        case 'get_board':
+          result = await this.handleGetBoard(args);
+          break;
+        case 'create_board':
+          result = await this.handleCreateBoard(args);
+          break;
+        case 'update_board':
+          result = await this.handleUpdateBoard(args);
+          break;
+        case 'delete_board':
+          result = await this.handleDeleteBoard(args);
+          break;
+        case 'add_board_widget':
+          result = await this.handleAddBoardWidget(args);
+          break;
+        case 'remove_board_widget':
+          result = await this.handleRemoveBoardWidget(args);
           break;
 
         // Utility handlers
@@ -441,6 +485,62 @@ export class OpenProjectToolHandlers {
     };
   }
 
+  // Work Package Parent-Child Relationship handlers
+  private async handleSetWorkPackageParent(args: any) {
+    const validatedArgs = SetWorkPackageParentArgsSchema.parse(args);
+    const workPackage = await this.client.setWorkPackageParent(validatedArgs.id, validatedArgs.parentId);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Parent relationship set successfully:\n\nChild: ${workPackage.subject} (ID: ${workPackage.id})\nParent: Work Package ID ${validatedArgs.parentId}\nUpdated: ${workPackage.updatedAt}`,
+        },
+      ],
+    };
+  }
+
+  private async handleRemoveWorkPackageParent(args: any) {
+    const validatedArgs = RemoveWorkPackageParentArgsSchema.parse(args);
+    const workPackage = await this.client.removeWorkPackageParent(validatedArgs.id);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Parent relationship removed successfully:\n\nWork Package: ${workPackage.subject} (ID: ${workPackage.id})\nStatus: No longer has a parent\nUpdated: ${workPackage.updatedAt}`,
+        },
+      ],
+    };
+  }
+
+  private async handleGetWorkPackageChildren(args: any) {
+    const validatedArgs = GetWorkPackageChildrenArgsSchema.parse(args);
+    const result = await this.client.getWorkPackageChildren(validatedArgs.id);
+    
+    if (result.total === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `No child work packages found for work package ID ${validatedArgs.id}.`,
+          },
+        ],
+      };
+    }
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Found ${result.total} child work packages for work package ID ${validatedArgs.id}:\n\n${result._embedded.elements
+            .map((wp: any) => `- ${wp.subject} (ID: ${wp.id}) - Status: ${wp.status?.name || 'Unknown'} - Assignee: ${wp.assignee?.name || 'Unassigned'}`)
+            .join('\n')}`,
+        },
+      ],
+    };
+  }
+
   // Search handlers
   private async handleSearch(args: any) {
     try {
@@ -635,6 +735,143 @@ export class OpenProjectToolHandlers {
         {
           type: 'text',
           text: `OpenProject API Information:\n\n${JSON.stringify(apiInfo, null, 2)}`,
+        },
+      ],
+    };
+  }
+
+  // Board handlers
+  private async handleGetBoards(args: any) {
+    const parsedArgs = GetBoardsArgsSchema.parse(args);
+    const queryParams: any = {};
+    if (parsedArgs.offset !== undefined) queryParams.offset = parsedArgs.offset;
+    if (parsedArgs.pageSize !== undefined) queryParams.pageSize = parsedArgs.pageSize;
+    if (parsedArgs.filters !== undefined) queryParams.filters = parsedArgs.filters;
+    if (parsedArgs.sortBy !== undefined) queryParams.sortBy = parsedArgs.sortBy;
+    
+    const boards = await this.client.getBoards(parsedArgs.projectId, queryParams);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Found ${boards.total} boards:\n\n${boards._embedded.elements.map((board: any) => 
+            `ID: ${board.id}\nScope: ${board.scope || 'Global'}\nRows: ${board.rowCount}\nColumns: ${board.columnCount}\nWidgets: ${board._embedded?.widgets?.length || 0}\nCreated: ${board.createdAt}\n`
+          ).join('\n')}`,
+        },
+      ],
+    };
+  }
+
+  private async handleGetBoard(args: any) {
+    const parsedArgs = GetBoardArgsSchema.parse(args);
+    const board = await this.client.getBoard(parsedArgs.id);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Board Details:\n\nID: ${board.id}\nScope: ${board.scope || 'Global'}\nRows: ${board.rowCount}\nColumns: ${board.columnCount}\nCreated: ${board.createdAt}\nUpdated: ${board.updatedAt}\n\nWidgets (${board._embedded?.widgets?.length || 0}):\n${board._embedded?.widgets?.map((widget: any) => 
+            `- Widget ID: ${widget.id}\n  Identifier: ${widget.identifier}\n  Position: Row ${widget.startRow}-${widget.endRow}, Col ${widget.startColumn}-${widget.endColumn}\n  Query: ${widget._embedded?.query?.name || 'No query'}`
+          ).join('\n') || 'No widgets'}`,
+        },
+      ],
+    };
+  }
+
+  private async handleCreateBoard(args: any) {
+    const parsedArgs = CreateBoardArgsSchema.parse(args);
+    const boardData: any = {};
+    if (parsedArgs.name !== undefined) boardData.name = parsedArgs.name;
+    if (parsedArgs.description !== undefined) boardData.description = parsedArgs.description;
+    if (parsedArgs.rowCount !== undefined) boardData.rowCount = parsedArgs.rowCount;
+    if (parsedArgs.columnCount !== undefined) boardData.columnCount = parsedArgs.columnCount;
+    
+    const board = await this.client.createBoard(parsedArgs.projectId, boardData);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Board created successfully:\n\nID: ${board.id}\nScope: ${board.scope}\nRows: ${board.rowCount}\nColumns: ${board.columnCount}\nCreated: ${board.createdAt}`,
+        },
+      ],
+    };
+  }
+
+  private async handleUpdateBoard(args: any) {
+    const parsedArgs = UpdateBoardArgsSchema.parse(args);
+    const boardData: any = {};
+    if (parsedArgs.name !== undefined) boardData.name = parsedArgs.name;
+    if (parsedArgs.description !== undefined) boardData.description = parsedArgs.description;
+    if (parsedArgs.rowCount !== undefined) boardData.rowCount = parsedArgs.rowCount;
+    if (parsedArgs.columnCount !== undefined) boardData.columnCount = parsedArgs.columnCount;
+    
+    const board = await this.client.updateBoard(parsedArgs.id, boardData);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Board updated successfully:\n\nID: ${board.id}\nScope: ${board.scope}\nRows: ${board.rowCount}\nColumns: ${board.columnCount}\nUpdated: ${board.updatedAt}`,
+        },
+      ],
+    };
+  }
+
+  private async handleDeleteBoard(args: any) {
+    const parsedArgs = DeleteBoardArgsSchema.parse(args);
+    await this.client.deleteBoard(parsedArgs.id);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Board with ID ${parsedArgs.id} has been deleted successfully.`,
+        },
+      ],
+    };
+  }
+
+  private async handleAddBoardWidget(args: any) {
+    const parsedArgs = AddBoardWidgetArgsSchema.parse(args);
+    const widgetData = {
+      _type: 'GridWidget',
+      identifier: parsedArgs.identifier,
+      startRow: parsedArgs.startRow,
+      endRow: parsedArgs.endRow,
+      startColumn: parsedArgs.startColumn,
+      endColumn: parsedArgs.endColumn,
+      options: parsedArgs.options || {},
+      _embedded: parsedArgs.queryId ? {
+        query: {
+          _type: 'Query',
+          id: parsedArgs.queryId,
+        },
+      } : undefined,
+    };
+    
+    const board = await this.client.addBoardWidget(parsedArgs.boardId, widgetData);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Widget added to board successfully:\n\nBoard ID: ${board.id}\nWidget Identifier: ${parsedArgs.identifier}\nPosition: Row ${parsedArgs.startRow}-${parsedArgs.endRow}, Col ${parsedArgs.startColumn}-${parsedArgs.endColumn}\nTotal Widgets: ${board._embedded?.widgets?.length || 0}`,
+        },
+      ],
+    };
+  }
+
+  private async handleRemoveBoardWidget(args: any) {
+    const parsedArgs = RemoveBoardWidgetArgsSchema.parse(args);
+    const board = await this.client.removeBoardWidget(parsedArgs.boardId, parsedArgs.widgetId);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Widget removed from board successfully:\n\nBoard ID: ${board.id}\nWidget ID: ${parsedArgs.widgetId}\nRemaining Widgets: ${board._embedded?.widgets?.length || 0}`,
         },
       ],
     };

@@ -74,6 +74,20 @@ const DeleteWorkPackageArgsSchema = z.object({
   id: z.number(),
 });
 
+// Work Package Parent-Child Relationship schemas
+const SetWorkPackageParentArgsSchema = z.object({
+  id: z.number(),
+  parentId: z.number(),
+});
+
+const RemoveWorkPackageParentArgsSchema = z.object({
+  id: z.number(),
+});
+
+const GetWorkPackageChildrenArgsSchema = z.object({
+  id: z.number(),
+});
+
 const SearchArgsSchema = z.object({
   query: z.string(),
   type: z.enum(['projects', 'work_packages', 'users']),
@@ -102,6 +116,55 @@ const CreateTimeEntryArgsSchema = z.object({
   hours: z.string(),
   comment: z.string().optional(),
   spentOn: z.string().optional(),
+});
+
+// Kanban Board argument schemas
+const GetBoardsArgsSchema = z.object({
+  projectId: z.number().optional(),
+  offset: z.number().optional(),
+  pageSize: z.number().optional(),
+  filters: z.string().optional(),
+  sortBy: z.string().optional(),
+});
+
+const GetBoardArgsSchema = z.object({
+  id: z.number(),
+});
+
+const CreateBoardArgsSchema = z.object({
+  projectId: z.number(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  rowCount: z.number().optional(),
+  columnCount: z.number().optional(),
+});
+
+const UpdateBoardArgsSchema = z.object({
+  id: z.number(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  rowCount: z.number().optional(),
+  columnCount: z.number().optional(),
+});
+
+const DeleteBoardArgsSchema = z.object({
+  id: z.number(),
+});
+
+const AddBoardWidgetArgsSchema = z.object({
+  boardId: z.number(),
+  identifier: z.string(),
+  startRow: z.number(),
+  endRow: z.number(),
+  startColumn: z.number(),
+  endColumn: z.number(),
+  queryId: z.number().optional(),
+  options: z.record(z.any()).optional(),
+});
+
+const RemoveBoardWidgetArgsSchema = z.object({
+  boardId: z.number(),
+  widgetId: z.number(),
 });
 
 export function createOpenProjectTools(): Tool[] {
@@ -376,6 +439,54 @@ export function createOpenProjectTools(): Tool[] {
       },
     },
 
+    // Work Package Parent-Child Relationship tools
+    {
+      name: 'set_work_package_parent',
+      description: 'Set a parent work package for a work package (creates parent-child relationship)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Work package ID (child)',
+          },
+          parentId: {
+            type: 'number',
+            description: 'Parent work package ID',
+          },
+        },
+        required: ['id', 'parentId'],
+      },
+    },
+    {
+      name: 'remove_work_package_parent',
+      description: 'Remove the parent relationship from a work package',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Work package ID',
+          },
+        },
+        required: ['id'],
+      },
+    },
+    {
+      name: 'get_work_package_children',
+      description: 'Get all child work packages of a parent work package',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Parent work package ID',
+          },
+        },
+        required: ['id'],
+      },
+    },
+
     // Search tools
     {
       name: 'search',
@@ -518,6 +629,185 @@ export function createOpenProjectTools(): Tool[] {
         properties: {},
       },
     },
+
+    // Kanban Board tools
+    {
+      name: 'get_boards',
+      description: 'Get a list of Kanban boards from OpenProject',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          projectId: {
+            type: 'number',
+            description: 'Filter boards by project ID',
+          },
+          offset: {
+            type: 'number',
+            description: 'Offset for pagination (default: 0)',
+          },
+          pageSize: {
+            type: 'number',
+            description: 'Number of items per page (default: 20)',
+          },
+          filters: {
+            type: 'string',
+            description: 'JSON string of filters to apply',
+          },
+          sortBy: {
+            type: 'string',
+            description: 'Sort criteria',
+          },
+        },
+      },
+    },
+    {
+      name: 'get_board',
+      description: 'Get a specific Kanban board by ID',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Board ID',
+          },
+        },
+        required: ['id'],
+      },
+    },
+    {
+      name: 'create_board',
+      description: 'Create a new Kanban board in OpenProject',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          projectId: {
+            type: 'number',
+            description: 'Project ID where the board will be created',
+          },
+          name: {
+            type: 'string',
+            description: 'Board name',
+          },
+          description: {
+            type: 'string',
+            description: 'Board description',
+          },
+          rowCount: {
+            type: 'number',
+            description: 'Number of rows in the board (default: 1)',
+          },
+          columnCount: {
+            type: 'number',
+            description: 'Number of columns in the board (default: 3)',
+          },
+        },
+        required: ['projectId'],
+      },
+    },
+    {
+      name: 'update_board',
+      description: 'Update an existing Kanban board',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Board ID',
+          },
+          name: {
+            type: 'string',
+            description: 'Board name',
+          },
+          description: {
+            type: 'string',
+            description: 'Board description',
+          },
+          rowCount: {
+            type: 'number',
+            description: 'Number of rows in the board',
+          },
+          columnCount: {
+            type: 'number',
+            description: 'Number of columns in the board',
+          },
+        },
+        required: ['id'],
+      },
+    },
+    {
+      name: 'delete_board',
+      description: 'Delete a Kanban board from OpenProject',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Board ID',
+          },
+        },
+        required: ['id'],
+      },
+    },
+    {
+      name: 'add_board_widget',
+      description: 'Add a widget (column) to a Kanban board',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          boardId: {
+            type: 'number',
+            description: 'Board ID',
+          },
+          identifier: {
+            type: 'string',
+            description: 'Widget identifier (e.g., "work_package_query")',
+          },
+          startRow: {
+            type: 'number',
+            description: 'Starting row position',
+          },
+          endRow: {
+            type: 'number',
+            description: 'Ending row position',
+          },
+          startColumn: {
+            type: 'number',
+            description: 'Starting column position',
+          },
+          endColumn: {
+            type: 'number',
+            description: 'Ending column position',
+          },
+          queryId: {
+            type: 'number',
+            description: 'Query ID for filtering work packages',
+          },
+          options: {
+            type: 'object',
+            description: 'Additional widget options',
+          },
+        },
+        required: ['boardId', 'identifier', 'startRow', 'endRow', 'startColumn', 'endColumn'],
+      },
+    },
+    {
+      name: 'remove_board_widget',
+      description: 'Remove a widget from a Kanban board',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          boardId: {
+            type: 'number',
+            description: 'Board ID',
+          },
+          widgetId: {
+            type: 'number',
+            description: 'Widget ID to remove',
+          },
+        },
+        required: ['boardId', 'widgetId'],
+      },
+    },
   ];
 }
 
@@ -533,8 +823,18 @@ export {
   CreateWorkPackageArgsSchema,
   UpdateWorkPackageArgsSchema,
   DeleteWorkPackageArgsSchema,
+  SetWorkPackageParentArgsSchema,
+  RemoveWorkPackageParentArgsSchema,
+  GetWorkPackageChildrenArgsSchema,
   SearchArgsSchema,
   GetUsersArgsSchema,
   GetTimeEntriesArgsSchema,
   CreateTimeEntryArgsSchema,
+  GetBoardsArgsSchema,
+  GetBoardArgsSchema,
+  CreateBoardArgsSchema,
+  UpdateBoardArgsSchema,
+  DeleteBoardArgsSchema,
+  AddBoardWidgetArgsSchema,
+  RemoveBoardWidgetArgsSchema,
 };

@@ -6,6 +6,8 @@ import {
   WorkPackage,
   User,
   TimeEntry,
+  Grid,
+  Board,
   CollectionResponse,
   QueryParams,
   OpenProjectError,
@@ -13,6 +15,8 @@ import {
   WorkPackageSchema,
   UserSchema,
   TimeEntrySchema,
+  GridSchema,
+  BoardSchema,
   CollectionResponseSchema,
 } from '../types/openproject.js';
 import { logger } from '../utils/logger.js';
@@ -298,6 +302,137 @@ export class OpenProjectClient {
     await this.axiosInstance.delete(`/work_packages/${id}`);
   }
 
+  // Work Package Parent-Child Relationship API
+  async setWorkPackageParent(id: number, parentId: number): Promise<WorkPackage> {
+    const startTime = Date.now();
+    const url = `/work_packages/${id}`;
+    
+    try {
+      // First, get the current work package to retrieve the lockVersion
+      logger.debug(`Getting current work package ${id} for lockVersion`, { id });
+      const currentResponse = await this.axiosInstance.get(url);
+      const currentWorkPackage = currentResponse.data;
+      const lockVersion = currentWorkPackage.lockVersion;
+      
+      logger.debug('Setting parent relationship', { 
+        childId: id, 
+        parentId, 
+        lockVersion 
+      });
+      
+      // Build the update payload with parent link
+      const updatePayload = {
+        lockVersion: lockVersion,
+        _links: {
+          parent: { href: `/api/v3/work_packages/${parentId}` }
+        }
+      };
+      
+      logger.logApiRequest('PATCH', url, updatePayload);
+      const response = await this.axiosInstance.patch(url, updatePayload);
+      
+      logger.logApiResponse('PATCH', url, response.status, response.headers, response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`setWorkPackageParent completed successfully (${duration}ms)`, {
+        childId: id,
+        parentId,
+        subject: response.data.subject
+      });
+      
+      return WorkPackageSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`setWorkPackageParent failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        childId: id,
+        parentId
+      });
+      throw error;
+    }
+  }
+
+  async removeWorkPackageParent(id: number): Promise<WorkPackage> {
+    const startTime = Date.now();
+    const url = `/work_packages/${id}`;
+    
+    try {
+      // First, get the current work package to retrieve the lockVersion
+      logger.debug(`Getting current work package ${id} for lockVersion`, { id });
+      const currentResponse = await this.axiosInstance.get(url);
+      const currentWorkPackage = currentResponse.data;
+      const lockVersion = currentWorkPackage.lockVersion;
+      
+      logger.debug('Removing parent relationship', { 
+        childId: id, 
+        lockVersion 
+      });
+      
+      // Build the update payload with null parent href (correct way to remove parent)
+      const updatePayload = {
+        lockVersion: lockVersion,
+        _links: {
+          parent: {
+            href: null
+          }
+        }
+      };
+      
+      logger.logApiRequest('PATCH', url, updatePayload);
+      const response = await this.axiosInstance.patch(url, updatePayload);
+      
+      logger.logApiResponse('PATCH', url, response.status, response.headers, response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`removeWorkPackageParent completed successfully (${duration}ms)`, {
+        childId: id,
+        subject: response.data.subject
+      });
+      
+      return WorkPackageSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`removeWorkPackageParent failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        childId: id
+      });
+      throw error;
+    }
+  }
+
+  async getWorkPackageChildren(id: number): Promise<CollectionResponse> {
+    const startTime = Date.now();
+    
+    try {
+      // Use filters to get children of the specified parent work package
+      const filters = `[{"parent":{"operator":"=","values":["${id}"]}}]`;
+      const params = { filters };
+      
+      logger.debug('Getting work package children', { parentId: id, filters });
+      
+      const result = await this.getWorkPackages(params);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`getWorkPackageChildren completed successfully (${duration}ms)`, {
+        parentId: id,
+        childrenCount: result.total
+      });
+      
+      return result;
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`getWorkPackageChildren failed (${duration}ms)`, {
+        error: error.message,
+        parentId: id
+      });
+      throw error;
+    }
+  }
+
   // Users API
   async getUsers(params: QueryParams = {}): Promise<CollectionResponse> {
     const queryString = this.buildQueryString(params);
@@ -415,5 +550,93 @@ export class OpenProjectClient {
       filters: `[{"name":{"operator":"~","values":["${query}"]}}]`,
     };
     return this.getUsers(searchParams);
+  }
+
+  // Grid/Board API methods for Kanban functionality
+  async getGrids(params: QueryParams = {}): Promise<CollectionResponse> {
+    const queryString = this.buildQueryString(params);
+    const response = await this.axiosInstance.get(`/grids${queryString}`);
+    return CollectionResponseSchema.parse(response.data);
+  }
+
+  async getGrid(id: number): Promise<Grid> {
+    const response = await this.axiosInstance.get(`/grids/${id}`);
+    return GridSchema.parse(response.data);
+  }
+
+  async createGrid(gridData: Partial<Grid>): Promise<Grid> {
+    const response = await this.axiosInstance.post('/grids', gridData);
+    return GridSchema.parse(response.data);
+  }
+
+  async updateGrid(id: number, gridData: Partial<Grid>): Promise<Grid> {
+    const response = await this.axiosInstance.patch(`/grids/${id}`, gridData);
+    return GridSchema.parse(response.data);
+  }
+
+  async deleteGrid(id: number): Promise<void> {
+    await this.axiosInstance.delete(`/grids/${id}`);
+  }
+
+  // Board-specific methods (boards are grids with scope filter)
+  async getBoards(projectId?: number, params: QueryParams = {}): Promise<CollectionResponse> {
+    const boardParams: QueryParams = {
+      ...params,
+    };
+    if (projectId) {
+      boardParams.filters = `[{"scope":{"operator":"=","values":["/projects/${projectId}"]}}]`;
+    }
+    return this.getGrids(boardParams);
+  }
+
+  async getBoard(id: number): Promise<Board> {
+    const grid = await this.getGrid(id);
+    return BoardSchema.parse(grid);
+  }
+
+  async createBoard(projectId: number, boardData: Partial<Board>): Promise<Board> {
+    const gridData = {
+      ...boardData,
+      scope: `/projects/${projectId}`,
+      rowCount: boardData.rowCount || 1,
+      columnCount: boardData.columnCount || 3,
+      _embedded: {
+        widgets: boardData._embedded?.widgets || [],
+      },
+    };
+    const response = await this.axiosInstance.post('/grids', gridData);
+    return BoardSchema.parse(response.data);
+  }
+
+  async updateBoard(id: number, boardData: Partial<Board>): Promise<Board> {
+    const response = await this.axiosInstance.patch(`/grids/${id}`, boardData);
+    return BoardSchema.parse(response.data);
+  }
+
+  async deleteBoard(id: number): Promise<void> {
+    await this.deleteGrid(id);
+  }
+
+  // Board widget management
+  async addBoardWidget(boardId: number, widgetData: any): Promise<Board> {
+    const board = await this.getBoard(boardId);
+    const updatedWidgets = [...(board._embedded?.widgets || []), widgetData];
+    return this.updateBoard(boardId, {
+      _embedded: {
+        widgets: updatedWidgets,
+      },
+    });
+  }
+
+  async removeBoardWidget(boardId: number, widgetId: number): Promise<Board> {
+    const board = await this.getBoard(boardId);
+    const updatedWidgets = (board._embedded?.widgets || []).filter(
+      widget => widget.id !== widgetId
+    );
+    return this.updateBoard(boardId, {
+      _embedded: {
+        widgets: updatedWidgets,
+      },
+    });
   }
 }

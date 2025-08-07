@@ -334,6 +334,47 @@ This comprehensive logging implementation provides:
 
 The MCP server now has comprehensive logging capabilities to troubleshoot the schema validation issues identified in testing, particularly for work package and project detail endpoints.
 
+## 2025-08-07 - Schema Validation Fixes
+
+### Problem Analysis
+Based on test results, identified three critical schema validation issues:
+1. **WorkPackageCollection vs Collection**: OpenProject API returns `WorkPackageCollection` instead of generic `Collection`
+2. **Project Description Object**: Project descriptions come as formatted text objects, not strings
+3. **Project Status Missing/Object**: Project status can be missing or returned as an object
+
+### Schema Updates
+- **Updated `CollectionResponseSchema`** in `src/types/openproject.ts`:
+  - Added support for multiple collection types: `WorkPackageCollection`, `ProjectCollection`, `UserCollection`, `TimeEntryCollection`
+  - Maintains backward compatibility with generic `Collection` type
+
+- **Updated `ProjectSchema`** in `src/types/openproject.ts`:
+  - **Description field**: Now accepts string, formatted text object, or null
+    - Formatted text object structure: `{ format: string, raw: string, html?: string }`
+  - **Status field**: Now accepts string, status object, or undefined
+    - Status object structure: `{ id: number, name: string }`
+
+### Handler Updates
+- **Updated `handleGetProject()`** in `src/handlers/tool-handlers.ts`:
+  - Added logic to extract text from description objects (uses `raw` field)
+  - Added logic to extract name from status objects
+  - Graceful fallback to default values for missing fields
+
+- **Updated `handleGetProjects()`** in `src/handlers/tool-handlers.ts`:
+  - Added description object handling for project listings
+  - Consistent text extraction logic across all project handlers
+
+### Validation Results
+- ✅ TypeScript compilation passes without errors
+- ✅ Build process completes successfully
+- ✅ Schema now matches actual OpenProject API response structure
+
+### Fixed Issues
+- ✅ `get_work_packages` - Now accepts `WorkPackageCollection` type
+- ✅ `search` - Now accepts `WorkPackageCollection` type for work package searches
+- ✅ `get_project` - Now handles object descriptions and missing/object status fields
+
+The MCP server should now successfully handle the previously failing operations with proper schema validation.
+
 ## Current Status
 
 ✅ **Server Status**: Running successfully  

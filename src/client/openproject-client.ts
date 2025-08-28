@@ -176,6 +176,15 @@ export class OpenProjectClient {
       logger.logApiRequest('GET', url, undefined, params);
       const response = await this.axiosInstance.get(url);
       
+      // Extract readable description text for all work packages
+      if (response.data._embedded?.elements) {
+        response.data._embedded.elements.forEach((wp: any) => {
+          if (wp.description && typeof wp.description === 'object') {
+            wp.description = this.extractDescriptionText(wp.description);
+          }
+        });
+      }
+      
       logger.logApiResponse('GET', url, response.status, response.headers, response.data);
       logger.logRawData('getWorkPackages response', response.data);
       
@@ -201,12 +210,55 @@ export class OpenProjectClient {
   async getWorkPackage(id: number): Promise<WorkPackage> {
     const response = await this.axiosInstance.get(`/work_packages/${id}`);
     logger.debug('Raw work package API response', { id, responseData: response.data });
+    
+    // Extract readable description text if it's an object
+    if (response.data.description && typeof response.data.description === 'object') {
+      response.data.description = this.extractDescriptionText(response.data.description);
+    }
+    
     return WorkPackageSchema.parse(response.data);
   }
 
   async createWorkPackage(workPackageData: Partial<WorkPackage>): Promise<WorkPackage> {
-    const response = await this.axiosInstance.post('/work_packages', workPackageData);
-    return WorkPackageSchema.parse(response.data);
+    const startTime = Date.now();
+    const url = '/work_packages';
+    
+    try {
+      // Transform description field to proper OpenProject format BEFORE sending to API
+      const transformedData = { ...workPackageData };
+      if (transformedData.description && typeof transformedData.description === 'string') {
+        transformedData.description = {
+          format: 'text',
+          raw: transformedData.description
+        };
+        logger.debug('Transformed description to OpenProject format for creation', { 
+          originalDescription: workPackageData.description,
+          transformedDescription: transformedData.description
+        });
+      }
+      
+      logger.logApiRequest('POST', url, transformedData);
+      const response = await this.axiosInstance.post(url, transformedData);
+      
+      logger.logApiResponse('POST', url, response.status, response.headers, response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`createWorkPackage completed successfully (${duration}ms)`, {
+        newWorkPackageId: response.data.id,
+        subject: response.data.subject
+      });
+      
+      return WorkPackageSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`createWorkPackage failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        workPackageData
+      });
+      throw error;
+    }
   }
 
   async updateWorkPackage(id: number, workPackageData: Partial<WorkPackage>): Promise<WorkPackage> {
@@ -228,10 +280,24 @@ export class OpenProjectClient {
         currentAssignee: currentWorkPackage._links?.assignee?.title
       });
       
-      // Build the update payload exactly like the working script
+      // Transform description field to proper OpenProject format BEFORE building payload
+      const transformedData = { ...workPackageData };
+      if (transformedData.description && typeof transformedData.description === 'string') {
+        transformedData.description = {
+          format: 'text',
+          raw: transformedData.description
+        };
+        logger.debug('Transformed description to OpenProject format', { 
+          id, 
+          originalDescription: workPackageData.description,
+          transformedDescription: transformedData.description
+        });
+      }
+      
+      // Build the update payload with transformed data
       const updatePayload: any = {
         lockVersion: lockVersion,
-        ...workPackageData // Spread all the update data directly
+        ...transformedData // Spread the transformed data
       };
       
       // Remove nested objects that need special handling
@@ -648,5 +714,24 @@ export class OpenProjectClient {
         widgets: updatedWidgets,
       },
     });
+  }
+
+  private extractDescriptionText(description: any): string {
+    if (typeof description === 'string') {
+      return description;
+    }
+    if (typeof description === 'object' && description !== null) {
+      if (typeof description.raw === 'string') {
+        return description.raw;
+      }
+      if (typeof description.html === 'string') {
+        // Strip HTML tags to return plain text
+        return description.html.replace(/<[^>]*>/g, '');
+      }
+      if (typeof description.plain === 'string') {
+        return description.plain;
+      }
+    }
+    return '';
   }
 }

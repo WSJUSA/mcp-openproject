@@ -123,12 +123,24 @@ class OpenProjectMCPServer {
 }
 
 // Start the server
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const server = new OpenProjectMCPServer();
-  server.start().catch((error) => {
-    console.error('Server startup failed:', error);
-    process.exit(1);
-  });
+let isMainModule = false;
+// handle windows paths
+if (process.platform === 'win32') {
+    const argv1 = process.argv[1] as string | undefined; // Type assertion for TypeScript strict null checks; argv[1] is the script path when run directly.
+    if (argv1) {
+        const normalizedMetaUrl = import.meta.url.replace(/\\/g, '/');
+        const normalizedArgv = `file:///${argv1.replace(/\\/g, '/')}`;
+        isMainModule = normalizedMetaUrl === normalizedArgv;
+    }
+} else {
+    isMainModule = import.meta.url === `file://${process.argv[1] || ''}`;
+}
+if (isMainModule) {
+    const server = new OpenProjectMCPServer();
+    server.start().catch((error) => {
+        console.error('Server startup failed:', error);
+        process.exit(1);
+    });
 }
 
 export { OpenProjectMCPServer };

@@ -192,6 +192,79 @@ export class OpenProjectClient {
           if (wp.description && typeof wp.description === 'object') {
             wp.description = this.extractDescriptionText(wp.description);
           }
+          
+          // Transform _links structure to match schema expectations for each work package
+          // Transform status from _links.status to status object
+          if (wp._links?.status) {
+            const statusHref = wp._links.status.href;
+            const statusId = statusHref ? parseInt(statusHref.split('/').pop() || '0') : null;
+            if (statusId) {
+              wp.status = {
+                id: statusId,
+                name: wp._links.status.title || 'Unknown'
+              };
+            }
+          }
+          
+          // Transform project from _links.project to project object
+          if (wp._links?.project) {
+            const projectHref = wp._links.project.href;
+            const projectId = projectHref ? parseInt(projectHref.split('/').pop() || '0') : null;
+            if (projectId) {
+              wp.project = {
+                id: projectId,
+                name: wp._links.project.title || 'Unknown'
+              };
+            }
+          }
+          
+          // Transform type from _links.type to type object
+          if (wp._links?.type) {
+            const typeHref = wp._links.type.href;
+            const typeId = typeHref ? parseInt(typeHref.split('/').pop() || '0') : null;
+            if (typeId) {
+              wp.type = {
+                id: typeId,
+                name: wp._links.type.title || 'Unknown'
+              };
+            }
+          }
+          
+          // Transform priority from _links.priority to priority object
+          if (wp._links?.priority) {
+            const priorityHref = wp._links.priority.href;
+            const priorityId = priorityHref ? parseInt(priorityHref.split('/').pop() || '0') : null;
+            if (priorityId) {
+              wp.priority = {
+                id: priorityId,
+                name: wp._links.priority.title || 'Unknown'
+              };
+            }
+          }
+          
+          // Transform assignee from _links.assignee to assignee object
+          if (wp._links?.assignee) {
+            const assigneeHref = wp._links.assignee.href;
+            const assigneeId = assigneeHref ? parseInt(assigneeHref.split('/').pop() || '0') : null;
+            if (assigneeId) {
+              wp.assignee = {
+                id: assigneeId,
+                name: wp._links.assignee.title || 'Unknown'
+              };
+            }
+          }
+          
+          // Transform responsible from _links.responsible to responsible object
+          if (wp._links?.responsible) {
+            const responsibleHref = wp._links.responsible.href;
+            const responsibleId = responsibleHref ? parseInt(responsibleHref.split('/').pop() || '0') : null;
+            if (responsibleId) {
+              wp.responsible = {
+                id: responsibleId,
+                name: wp._links.responsible.title || 'Unknown'
+              };
+            }
+          }
         });
       }
       
@@ -226,7 +299,84 @@ export class OpenProjectClient {
       response.data.description = this.extractDescriptionText(response.data.description);
     }
     
-    return WorkPackageSchema.parse(response.data);
+    // Transform _links structure to match schema expectations
+    const transformedData = { ...response.data };
+    
+    // Transform status from _links.status to status object
+    if (transformedData._links?.status) {
+      const statusHref = transformedData._links.status.href;
+      const statusId = statusHref ? parseInt(statusHref.split('/').pop() || '0') : null;
+      if (statusId) {
+        transformedData.status = {
+          id: statusId,
+          name: transformedData._links.status.title || 'Unknown'
+        };
+      }
+    }
+    
+    // Transform project from _links.project to project object
+    if (transformedData._links?.project) {
+      const projectHref = transformedData._links.project.href;
+      const projectId = projectHref ? parseInt(projectHref.split('/').pop() || '0') : null;
+      if (projectId) {
+        transformedData.project = {
+          id: projectId,
+          name: transformedData._links.project.title || 'Unknown'
+        };
+      }
+    }
+    
+    // Transform type from _links.type to type object
+    if (transformedData._links?.type) {
+      const typeHref = transformedData._links.type.href;
+      const typeId = typeHref ? parseInt(typeHref.split('/').pop() || '0') : null;
+      if (typeId) {
+        transformedData.type = {
+          id: typeId,
+          name: transformedData._links.type.title || 'Unknown'
+        };
+      }
+    }
+    
+    // Transform priority from _links.priority to priority object
+    if (transformedData._links?.priority) {
+      const priorityHref = transformedData._links.priority.href;
+      const priorityId = priorityHref ? parseInt(priorityHref.split('/').pop() || '0') : null;
+      if (priorityId) {
+        transformedData.priority = {
+          id: priorityId,
+          name: transformedData._links.priority.title || 'Unknown'
+        };
+      }
+    }
+    
+    // Transform assignee from _links.assignee to assignee object
+    if (transformedData._links?.assignee) {
+      const assigneeHref = transformedData._links.assignee.href;
+      const assigneeId = assigneeHref ? parseInt(assigneeHref.split('/').pop() || '0') : null;
+      if (assigneeId) {
+        transformedData.assignee = {
+          id: assigneeId,
+          name: transformedData._links.assignee.title || 'Unknown'
+        };
+      }
+    }
+    
+    // Transform responsible from _links.responsible to responsible object
+    if (transformedData._links?.responsible) {
+      const responsibleHref = transformedData._links.responsible.href;
+      const responsibleId = responsibleHref ? parseInt(responsibleHref.split('/').pop() || '0') : null;
+      if (responsibleId) {
+        transformedData.responsible = {
+          id: responsibleId,
+          name: transformedData._links.responsible.title || 'Unknown'
+        };
+      }
+    }
+    
+    logger.debug('Transformed work package data', { transformedData });
+    
+    return WorkPackageSchema.parse(transformedData);
   }
 
   async createWorkPackage(workPackageData: Partial<WorkPackage>): Promise<WorkPackage> {

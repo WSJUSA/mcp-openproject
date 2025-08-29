@@ -28,6 +28,13 @@ import {
   DeleteBoardArgsSchema,
   AddBoardWidgetArgsSchema,
   RemoveBoardWidgetArgsSchema,
+  GetMembershipsArgsSchema,
+  GetMembershipArgsSchema,
+  CreateMembershipArgsSchema,
+  UpdateMembershipArgsSchema,
+  DeleteMembershipArgsSchema,
+  GetRolesArgsSchema,
+  GetRoleArgsSchema,
 } from '../tools/index.js';
 
 export class OpenProjectToolHandlers {
@@ -138,6 +145,31 @@ export class OpenProjectToolHandlers {
           break;
         case 'remove_board_widget':
           result = await this.handleRemoveBoardWidget(args);
+          break;
+
+        // Membership handlers
+        case 'get_memberships':
+          result = await this.handleGetMemberships(args);
+          break;
+        case 'get_membership':
+          result = await this.handleGetMembership(args);
+          break;
+        case 'create_membership':
+          result = await this.handleCreateMembership(args);
+          break;
+        case 'update_membership':
+          result = await this.handleUpdateMembership(args);
+          break;
+        case 'delete_membership':
+          result = await this.handleDeleteMembership(args);
+          break;
+
+        // Role handlers
+        case 'get_roles':
+          result = await this.handleGetRoles(args);
+          break;
+        case 'get_role':
+          result = await this.handleGetRole(args);
           break;
 
         // Utility handlers
@@ -808,35 +840,6 @@ export class OpenProjectToolHandlers {
     };
   }
 
-  // Utility handlers
-  private async handleTestConnection() {
-    const isConnected = await this.client.testConnection();
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: isConnected 
-            ? 'Connection to OpenProject API successful!' 
-            : 'Failed to connect to OpenProject API. Please check your configuration.',
-        },
-      ],
-    };
-  }
-
-  private async handleGetApiInfo() {
-    const apiInfo = await this.client.getApiInfo();
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `OpenProject API Information:\n\n${JSON.stringify(apiInfo, null, 2)}`,
-        },
-      ],
-    };
-  }
-
   // Board handlers
   private async handleGetBoards(args: any) {
     const parsedArgs = GetBoardsArgsSchema.parse(args);
@@ -969,6 +972,151 @@ export class OpenProjectToolHandlers {
         {
           type: 'text',
           text: `Widget removed from board successfully:\n\nBoard ID: ${board.id}\nWidget ID: ${parsedArgs.widgetId}\nRemaining Widgets: ${board._embedded?.widgets?.length || 0}`,
+        },
+      ],
+    };
+  }
+
+     // Membership handlers
+   private async handleGetMemberships(args: any) {
+     const validatedArgs = GetMembershipsArgsSchema.parse(args);
+     const queryParams: any = {};
+     if (validatedArgs.offset !== undefined) queryParams.offset = validatedArgs.offset;
+     if (validatedArgs.pageSize !== undefined) queryParams.pageSize = validatedArgs.pageSize;
+     if (validatedArgs.filters !== undefined) queryParams.filters = validatedArgs.filters;
+     if (validatedArgs.sortBy !== undefined) queryParams.sortBy = validatedArgs.sortBy;
+
+     const memberships = await this.client.getMemberships(queryParams);
+
+           return {
+        content: [
+          {
+            type: 'text',
+            text: `Found ${memberships.total} memberships:\n\n${memberships._embedded.elements.map((membership: any) => 
+              `ID: ${membership.id}\nUser: ${membership._links.principal.title || 'N/A'}\nProject: ${membership._links.project.title || 'N/A'}\nRoles: ${membership._links.roles.map((r: any) => r.title).join(', ') || 'N/A'}\nCreated: ${membership.createdAt || 'N/A'}\n`
+            ).join('\n')}`,
+          },
+        ],
+      };
+   }
+
+       private async handleGetMembership(args: any) {
+      const validatedArgs = GetMembershipArgsSchema.parse(args);
+      const membership = await this.client.getMembership(validatedArgs.id);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Membership Details:\n\nID: ${membership.id}\nUser: ${membership._links.principal.title || 'N/A'}\nProject: ${membership._links.project.title || 'N/A'}\nRoles: ${membership._links.roles.map((r: any) => r.title).join(', ') || 'N/A'}\nCreated: ${membership.createdAt || 'N/A'}\nUpdated: ${membership.updatedAt || 'N/A'}`,
+          },
+        ],
+      };
+    }
+
+    private async handleCreateMembership(args: any) {
+      const validatedArgs = CreateMembershipArgsSchema.parse(args);
+      const membership = await this.client.createMembership(validatedArgs);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Membership created successfully:\n\nID: ${membership.id}\nUser: ${membership._links.principal.title || 'N/A'}\nProject: ${membership._links.project.title || 'N/A'}\nRoles: ${membership._links.roles.map((r: any) => r.title).join(', ') || 'N/A'}\nCreated: ${membership.createdAt || 'N/A'}`,
+          },
+        ],
+      };
+    }
+
+    private async handleUpdateMembership(args: any) {
+      const validatedArgs = UpdateMembershipArgsSchema.parse(args);
+      const membership = await this.client.updateMembership(validatedArgs.id, validatedArgs.roleIds);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Membership updated successfully:\n\nID: ${membership.id}\nUser: ${membership._links.principal.title || 'N/A'}\nProject: ${membership._links.project.title || 'N/A'}\nRoles: ${membership._links.roles.map((r: any) => r.title).join(', ') || 'N/A'}\nUpdated: ${membership.updatedAt || 'N/A'}`,
+          },
+        ],
+      };
+    }
+
+  private async handleDeleteMembership(args: any) {
+    const validatedArgs = DeleteMembershipArgsSchema.parse(args);
+    await this.client.deleteMembership(validatedArgs.id);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Membership with ID ${validatedArgs.id} has been deleted successfully.`,
+        },
+      ],
+    };
+  }
+
+  // Role handlers
+     private async handleGetRoles(args: any) {
+     const validatedArgs = GetRolesArgsSchema.parse(args);
+     const queryParams: any = {};
+     if (validatedArgs.offset !== undefined) queryParams.offset = validatedArgs.offset;
+     if (validatedArgs.pageSize !== undefined) queryParams.pageSize = validatedArgs.pageSize;
+     if (validatedArgs.filters !== undefined) queryParams.filters = validatedArgs.filters;
+     if (validatedArgs.sortBy !== undefined) queryParams.sortBy = validatedArgs.sortBy;
+
+     const roles = await this.client.getRoles(queryParams);
+
+           return {
+        content: [
+          {
+            type: 'text',
+            text: `Found ${roles.total} roles:\n\n${roles._embedded.elements.map((role: any) => 
+              `ID: ${role.id}\nName: ${role.name}\n`
+            ).join('\n')}`,
+          },
+        ],
+      };
+    }
+
+    private async handleGetRole(args: any) {
+      const validatedArgs = GetRoleArgsSchema.parse(args);
+      const role = await this.client.getRole(validatedArgs.id);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Role Details:\n\nID: ${role.id}\nName: ${role.name}`,
+          },
+        ],
+      };
+    }
+
+  // Utility handlers
+  private async handleTestConnection() {
+    const isConnected = await this.client.testConnection();
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: isConnected 
+            ? 'Connection to OpenProject API successful!' 
+            : 'Failed to connect to OpenProject API. Please check your configuration.',
+        },
+      ],
+    };
+  }
+
+  private async handleGetApiInfo() {
+    const apiInfo = await this.client.getApiInfo();
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `OpenProject API Information:\n\n${JSON.stringify(apiInfo, null, 2)}`,
         },
       ],
     };

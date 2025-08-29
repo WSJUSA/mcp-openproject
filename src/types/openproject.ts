@@ -266,6 +266,81 @@ export const StatusCollectionResponseSchema = z.object({
   _links: z.record(z.any()).optional(),
 });
 
+// Role schemas
+export const RoleSchema = z.object({
+  _type: z.literal('Role'),
+  id: z.number(),
+  name: z.string(),
+  _links: z.object({
+    self: z.object({
+      href: z.string(),
+      title: z.string(),
+    }),
+  }),
+});
+
+// Membership schemas
+export const MembershipSchema = z.object({
+  _type: z.literal('Membership'),
+  id: z.number(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+  _links: z.object({
+    self: z.object({
+      href: z.string(),
+      title: z.string().optional(),
+    }),
+    schema: z.object({
+      href: z.string(),
+    }).optional(),
+    update: z.object({
+      href: z.string(),
+      method: z.string(),
+    }).optional(),
+    updateImmediately: z.object({
+      href: z.string(),
+      method: z.string(),
+    }).optional(),
+    project: z.object({
+      href: z.string(),
+      title: z.string(),
+    }),
+    principal: z.object({
+      href: z.string(),
+      title: z.string(),
+    }),
+    roles: z.array(z.object({
+      href: z.string(),
+      title: z.string(),
+    })),
+  }),
+});
+
+// Collection response schemas for memberships and roles
+export const MembershipCollectionResponseSchema = z.object({
+  _type: z.literal('Collection'),
+  total: z.number(),
+  count: z.number(),
+  pageSize: z.number().optional(),
+  offset: z.number().optional(),
+  _embedded: z.object({
+    elements: z.array(MembershipSchema),
+  }),
+  _links: z.record(z.any()).optional(),
+});
+
+export const RoleCollectionResponseSchema = z.object({
+  _type: z.literal('Collection'),
+  total: z.number(),
+  count: z.number(),
+  pageSize: z.number().optional(),
+  offset: z.number().optional(),
+  _embedded: z.object({
+    elements: z.array(RoleSchema),
+  }),
+  _links: z.record(z.any()).optional(),
+});
+
 // API Configuration
 export const OpenProjectConfigSchema = z.object({
   baseUrl: z.string().url(),
@@ -285,6 +360,10 @@ export type Board = z.infer<typeof BoardSchema>;
 export type Status = z.infer<typeof StatusSchema>;
 export type StatusCollectionResponse = z.infer<typeof StatusCollectionResponseSchema>;
 export type CollectionResponse = z.infer<typeof CollectionResponseSchema>;
+export type Membership = z.infer<typeof MembershipSchema>;
+export type Role = z.infer<typeof RoleSchema>;
+export type MembershipCollectionResponse = z.infer<typeof MembershipCollectionResponseSchema>;
+export type RoleCollectionResponse = z.infer<typeof RoleCollectionResponseSchema>;
 export type OpenProjectConfig = z.infer<typeof OpenProjectConfigSchema>;
 
 // Query parameters for API calls
@@ -296,7 +375,6 @@ export interface QueryParams {
   groupBy?: string;
   showSums?: boolean;
 }
-
 // Error response from OpenProject API
 export interface OpenProjectError {
   _type: 'Error';

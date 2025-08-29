@@ -20,6 +20,14 @@ import {
   BoardSchema,
   StatusCollectionResponseSchema,
   CollectionResponseSchema,
+  MembershipCollectionResponse,
+  MembershipCollectionResponseSchema,
+  MembershipSchema,
+  RoleCollectionResponse,
+  RoleCollectionResponseSchema,
+  RoleSchema,
+  Membership,
+  Role,
 } from '../types/openproject.js';
 import { logger } from '../utils/logger.js';
 
@@ -573,6 +581,230 @@ export class OpenProjectClient {
 
   async deleteTimeEntry(id: number): Promise<void> {
     await this.axiosInstance.delete(`/time_entries/${id}`);
+  }
+
+  // Membership API methods
+  async getMemberships(params: QueryParams = {}): Promise<MembershipCollectionResponse> {
+    const startTime = Date.now();
+    const queryString = this.buildQueryString(params);
+    const url = `/memberships${queryString}`;
+    
+    try {
+      logger.logApiRequest('GET', url, undefined, params);
+      const response = await this.axiosInstance.get(url);
+      
+      logger.logApiResponse('GET', url, response.status, response.headers, response.data);
+      logger.logRawData('getMemberships response', response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`getMemberships completed successfully (${duration}ms)`, {
+        totalMemberships: response.data?.total,
+        returnedCount: response.data?._embedded?.elements?.length
+      });
+      
+      return MembershipCollectionResponseSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`getMemberships failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        params
+      });
+      throw error;
+    }
+  }
+
+  async getMembership(id: number): Promise<Membership> {
+    const startTime = Date.now();
+    const url = `/memberships/${id}`;
+    
+    try {
+      logger.logApiRequest('GET', url, undefined, { id });
+      const response = await this.axiosInstance.get(url);
+      
+      logger.logApiResponse('GET', url, response.status, response.headers, response.data);
+      logger.logRawData('getMembership response', response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`getMembership completed successfully (${duration}ms)`, {
+        membershipId: id,
+        projectName: response.data?.project?.name,
+        userName: response.data?.principal?.name
+      });
+      
+      return MembershipSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`getMembership failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        membershipId: id
+      });
+      throw error;
+    }
+  }
+
+  async createMembership(membershipData: { projectId: number; userId: number; roleIds: number[] }): Promise<Membership> {
+    const startTime = Date.now();
+    const url = '/memberships';
+    
+    try {
+      const payload = {
+        _links: {
+          project: { href: `/api/v3/projects/${membershipData.projectId}` },
+          principal: { href: `/api/v3/users/${membershipData.userId}` },
+          roles: membershipData.roleIds.map(roleId => ({ href: `/api/v3/roles/${roleId}` }))
+        }
+      };
+      
+      logger.logApiRequest('POST', url, payload, membershipData);
+      const response = await this.axiosInstance.post(url, payload);
+      
+      logger.logApiResponse('POST', url, response.status, response.headers, response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`createMembership completed successfully (${duration}ms)`, {
+        newMembershipId: response.data.id,
+        projectId: membershipData.projectId,
+        userId: membershipData.userId,
+        roleCount: membershipData.roleIds.length
+      });
+      
+      return MembershipSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`createMembership failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        membershipData
+      });
+      throw error;
+    }
+  }
+
+  async updateMembership(id: number, roleIds: number[]): Promise<Membership> {
+    const startTime = Date.now();
+    const url = `/memberships/${id}`;
+    
+    try {
+      const payload = {
+        _links: {
+          roles: roleIds.map(roleId => ({ href: `/api/v3/roles/${roleId}` }))
+        }
+      };
+      
+      logger.logApiRequest('PATCH', url, payload, { id, roleIds });
+      const response = await this.axiosInstance.patch(url, payload);
+      
+      logger.logApiResponse('PATCH', url, response.status, response.headers, response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`updateMembership completed successfully (${duration}ms)`, {
+        membershipId: id,
+        newRoleCount: roleIds.length
+      });
+      
+      return MembershipSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`updateMembership failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        membershipId: id,
+        roleIds
+      });
+      throw error;
+    }
+  }
+
+  async deleteMembership(id: number): Promise<void> {
+    const startTime = Date.now();
+    const url = `/memberships/${id}`;
+    
+    try {
+      logger.logApiRequest('DELETE', url, undefined, { id });
+      await this.axiosInstance.delete(url);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`deleteMembership completed successfully (${duration}ms)`, {
+        membershipId: id
+      });
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`deleteMembership failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        membershipId: id
+      });
+      throw error;
+    }
+  }
+
+  // Role API methods
+  async getRoles(params: QueryParams = {}): Promise<RoleCollectionResponse> {
+    const startTime = Date.now();
+    const queryString = this.buildQueryString(params);
+    const url = `/roles${queryString}`;
+    
+    try {
+      logger.logApiRequest('GET', url, undefined, params);
+      const response = await this.axiosInstance.get(url);
+      
+      logger.logApiResponse('GET', url, response.status, response.headers, response.data);
+      logger.logRawData('getRoles response', response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`getRoles completed successfully (${duration}ms)`, {
+        totalRoles: response.data?.total,
+        returnedCount: response.data?._embedded?.elements?.length
+      });
+      
+      return RoleCollectionResponseSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`getRoles failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        params
+      });
+      throw error;
+    }
+  }
+
+  async getRole(id: number): Promise<Role> {
+    const startTime = Date.now();
+    const url = `/roles/${id}`;
+    
+    try {
+      logger.logApiRequest('GET', url, undefined, { id });
+      const response = await this.axiosInstance.get(url);
+      
+      logger.logApiResponse('GET', url, response.status, response.headers, response.data);
+      logger.logRawData('getRole response', response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`getRole completed successfully (${duration}ms)`, {
+        roleId: id,
+        roleName: response.data?.name
+      });
+      
+      return RoleSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`getRole failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        roleId: id
+      });
+      throw error;
+    }
   }
 
   // Utility methods

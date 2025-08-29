@@ -178,6 +178,45 @@ const RemoveBoardWidgetArgsSchema = z.object({
   widgetId: z.number(),
 });
 
+// Membership and Role argument schemas
+const GetMembershipsArgsSchema = z.object({
+  offset: z.number().optional(),
+  pageSize: z.number().optional(),
+  filters: z.string().optional(),
+  sortBy: z.string().optional(),
+  projectId: z.number().optional(),
+});
+
+const GetMembershipArgsSchema = z.object({
+  id: z.number(),
+});
+
+const CreateMembershipArgsSchema = z.object({
+  projectId: z.number(),
+  userId: z.number(),
+  roleIds: z.array(z.number()),
+});
+
+const UpdateMembershipArgsSchema = z.object({
+  id: z.number(),
+  roleIds: z.array(z.number()),
+});
+
+const DeleteMembershipArgsSchema = z.object({
+  id: z.number(),
+});
+
+const GetRolesArgsSchema = z.object({
+  offset: z.number().optional(),
+  pageSize: z.number().optional(),
+  filters: z.string().optional(),
+  sortBy: z.string().optional(),
+});
+
+const GetRoleArgsSchema = z.object({
+  id: z.number(),
+});
+
 export function createOpenProjectTools(): Tool[] {
   return [
     // Project tools
@@ -860,6 +899,152 @@ export function createOpenProjectTools(): Tool[] {
         required: ['boardId', 'widgetId'],
       },
     },
+
+    // Membership tools
+    {
+      name: 'get_memberships',
+      description: 'Get a list of project memberships from OpenProject',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          offset: {
+            type: 'number',
+            description: 'Offset for pagination (default: 0)',
+          },
+          pageSize: {
+            type: 'number',
+            description: 'Number of items per page (default: 20)',
+          },
+          filters: {
+            type: 'string',
+            description: 'JSON string of filters to apply',
+          },
+          sortBy: {
+            type: 'string',
+            description: 'Sort criteria (e.g., "created_at:desc")',
+          },
+          projectId: {
+            type: 'number',
+            description: 'Filter by project ID',
+          },
+        },
+      },
+    },
+    {
+      name: 'get_membership',
+      description: 'Get a specific project membership by ID',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Membership ID',
+          },
+        },
+        required: ['id'],
+      },
+    },
+    {
+      name: 'create_membership',
+      description: 'Create a new project membership (add user to project)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          projectId: {
+            type: 'number',
+            description: 'Project ID',
+          },
+          userId: {
+            type: 'number',
+            description: 'User ID to add to the project',
+          },
+          roleIds: {
+            type: 'array',
+            items: {
+              type: 'number',
+            },
+            description: 'Array of role IDs to assign to the user',
+          },
+        },
+        required: ['projectId', 'userId', 'roleIds'],
+      },
+    },
+    {
+      name: 'update_membership',
+      description: 'Update an existing project membership (modify user roles)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Membership ID',
+          },
+          roleIds: {
+            type: 'array',
+            items: {
+              type: 'number',
+            },
+            description: 'Array of role IDs to assign to the user',
+          },
+        },
+        required: ['id', 'roleIds'],
+      },
+    },
+    {
+      name: 'delete_membership',
+      description: 'Delete a project membership (remove user from project)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Membership ID',
+          },
+        },
+        required: ['id'],
+      },
+    },
+
+    // Role tools
+    {
+      name: 'get_roles',
+      description: 'Get a list of available roles from OpenProject',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          offset: {
+            type: 'number',
+            description: 'Offset for pagination (default: 0)',
+          },
+          pageSize: {
+            type: 'number',
+            description: 'Number of items per page (default: 20)',
+          },
+          filters: {
+            type: 'string',
+            description: 'JSON string of filters to apply',
+          },
+          sortBy: {
+            type: 'string',
+            description: 'Sort criteria (e.g., "name:asc")',
+          },
+        },
+      },
+    },
+    {
+      name: 'get_role',
+      description: 'Get a specific role by ID',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Role ID',
+          },
+        },
+        required: ['id'],
+      },
+    },
   ];
 }
 
@@ -891,4 +1076,11 @@ export {
   DeleteBoardArgsSchema,
   AddBoardWidgetArgsSchema,
   RemoveBoardWidgetArgsSchema,
+  GetMembershipsArgsSchema,
+  GetMembershipArgsSchema,
+  CreateMembershipArgsSchema,
+  UpdateMembershipArgsSchema,
+  DeleteMembershipArgsSchema,
+  GetRolesArgsSchema,
+  GetRoleArgsSchema,
 };

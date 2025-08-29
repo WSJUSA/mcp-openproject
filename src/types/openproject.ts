@@ -238,6 +238,34 @@ export const CollectionResponseSchema = z.object({
   _links: z.record(z.any()).optional(),
 });
 
+// Status schema for work package statuses
+export const StatusSchema = z.object({
+  _type: z.literal('Status'),
+  id: z.number(),
+  name: z.string(),
+  isClosed: z.boolean(),
+  color: z.string().optional(),
+  isDefault: z.boolean().optional(),
+  isReadonly: z.boolean().optional(),
+  excludedFromTotals: z.boolean().optional(),
+  defaultDoneRatio: z.number().optional(),
+  position: z.number().optional(),
+  _links: z.record(z.any()).optional(),
+});
+
+// Status collection response schema
+export const StatusCollectionResponseSchema = z.object({
+  _type: z.literal('Collection'),
+  total: z.number(),
+  count: z.number(),
+  pageSize: z.number().optional(),
+  offset: z.number().optional(),
+  _embedded: z.object({
+    elements: z.array(StatusSchema),
+  }),
+  _links: z.record(z.any()).optional(),
+});
+
 // API Configuration
 export const OpenProjectConfigSchema = z.object({
   baseUrl: z.string().url(),
@@ -254,6 +282,8 @@ export type TimeEntry = z.infer<typeof TimeEntrySchema>;
 export type GridWidget = z.infer<typeof GridWidgetSchema>;
 export type Grid = z.infer<typeof GridSchema>;
 export type Board = z.infer<typeof BoardSchema>;
+export type Status = z.infer<typeof StatusSchema>;
+export type StatusCollectionResponse = z.infer<typeof StatusCollectionResponseSchema>;
 export type CollectionResponse = z.infer<typeof CollectionResponseSchema>;
 export type OpenProjectConfig = z.infer<typeof OpenProjectConfigSchema>;
 

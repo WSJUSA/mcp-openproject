@@ -70,6 +70,11 @@ const UpdateWorkPackageArgsSchema = z.object({
   percentageDone: z.number().optional(),
 });
 
+const SetWorkPackageStatusArgsSchema = z.object({
+  id: z.number(),
+  statusId: z.number(),
+});
+
 const DeleteWorkPackageArgsSchema = z.object({
   id: z.number(),
 });
@@ -95,6 +100,12 @@ const SearchArgsSchema = z.object({
 });
 
 const GetUsersArgsSchema = z.object({
+  offset: z.number().optional(),
+  pageSize: z.number().optional(),
+  filters: z.string().optional(),
+});
+
+const GetStatusesArgsSchema = z.object({
   offset: z.number().optional(),
   pageSize: z.number().optional(),
   filters: z.string().optional(),
@@ -425,6 +436,24 @@ export function createOpenProjectTools(): Tool[] {
       },
     },
     {
+      name: 'set_work_package_status',
+      description: 'Set work package status. STOP on error. Do not investigate.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'number',
+            description: 'Work package ID',
+          },
+          statusId: {
+            type: 'number',
+            description: 'Status ID (required).',
+          },
+        },
+        required: ['id', 'statusId'],
+      },
+    },
+    {
       name: 'delete_work_package',
       description: 'Delete a work package from OpenProject',
       inputSchema: {
@@ -540,6 +569,29 @@ export function createOpenProjectTools(): Tool[] {
       inputSchema: {
         type: 'object',
         properties: {},
+      },
+    },
+
+    // Status tools
+    {
+      name: 'get_statuses',
+      description: 'Get a list of available work package statuses from OpenProject',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          offset: {
+            type: 'number',
+            description: 'Offset for pagination (default: 0)',
+          },
+          pageSize: {
+            type: 'number',
+            description: 'Number of items per page (default: 20)',
+          },
+          filters: {
+            type: 'string',
+            description: 'JSON string of filters to apply',
+          },
+        },
       },
     },
 
@@ -822,12 +874,14 @@ export {
   GetWorkPackageArgsSchema,
   CreateWorkPackageArgsSchema,
   UpdateWorkPackageArgsSchema,
+  SetWorkPackageStatusArgsSchema,
   DeleteWorkPackageArgsSchema,
   SetWorkPackageParentArgsSchema,
   RemoveWorkPackageParentArgsSchema,
   GetWorkPackageChildrenArgsSchema,
   SearchArgsSchema,
   GetUsersArgsSchema,
+  GetStatusesArgsSchema,
   GetTimeEntriesArgsSchema,
   CreateTimeEntryArgsSchema,
   GetBoardsArgsSchema,

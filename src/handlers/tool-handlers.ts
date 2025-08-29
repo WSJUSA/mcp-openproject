@@ -11,12 +11,14 @@ import {
   GetWorkPackageArgsSchema,
   CreateWorkPackageArgsSchema,
   UpdateWorkPackageArgsSchema,
+  SetWorkPackageStatusArgsSchema,
   DeleteWorkPackageArgsSchema,
   SetWorkPackageParentArgsSchema,
   RemoveWorkPackageParentArgsSchema,
   GetWorkPackageChildrenArgsSchema,
   SearchArgsSchema,
   GetUsersArgsSchema,
+  GetStatusesArgsSchema,
   GetTimeEntriesArgsSchema,
   CreateTimeEntryArgsSchema,
   GetBoardsArgsSchema,
@@ -71,6 +73,9 @@ export class OpenProjectToolHandlers {
         case 'update_work_package':
           result = await this.handleUpdateWorkPackage(args);
           break;
+        case 'set_work_package_status':
+          result = await this.handleSetWorkPackageStatus(args);
+          break;
         case 'delete_work_package':
           result = await this.handleDeleteWorkPackage(args);
           break;
@@ -97,6 +102,11 @@ export class OpenProjectToolHandlers {
           break;
         case 'get_current_user':
           result = await this.handleGetCurrentUser();
+          break;
+
+        // Status handlers
+        case 'get_statuses':
+          result = await this.handleGetStatuses(args);
           break;
 
         // Time Entry handlers
@@ -471,6 +481,45 @@ export class OpenProjectToolHandlers {
     };
   }
 
+  private async handleSetWorkPackageStatus(args: any) {
+    try {
+      logger.debug('Validating args for set_work_package_status', { args });
+      const validatedArgs = SetWorkPackageStatusArgsSchema.parse(args);
+      logger.logSchemaValidation('set_work_package_status', args);
+      
+      // Update the work package status
+      const result = await this.client.updateWorkPackage(validatedArgs.id, { status: { id: validatedArgs.statusId, name: 'dummy' } });
+      
+      logger.logRawData('setWorkPackageStatus client result', result);
+      
+      // Find the status name for the response by fetching from API
+      const statusesResponse = await this.client.getStatuses();
+      const status = statusesResponse._embedded.elements.find(s => s.id === validatedArgs.statusId);
+      const statusName = status ? status.name : `ID ${validatedArgs.statusId}`;
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Work package ${validatedArgs.id} status updated to "${statusName}" successfully.`,
+          },
+        ],
+      };
+    } catch (error) {
+      logger.error('Error setting work package status', { error, args });
+      
+      // Return a very directive error message that forces the agent to stop
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{
+          type: 'text',
+          text: `ERROR: ${errorMessage}. STOP. Do not investigate. Ask user for valid status ID.`
+        }],
+        isError: true
+      };
+    }
+  }
+
   private async handleDeleteWorkPackage(args: any) {
     const validatedArgs = DeleteWorkPackageArgsSchema.parse(args);
     await this.client.deleteWorkPackage(validatedArgs.id);
@@ -663,6 +712,28 @@ export class OpenProjectToolHandlers {
         {
           type: 'text',
           text: `Current User Details:\n\nName: ${user.name}\nID: ${user.id}\nLogin: ${user.login}\nEmail: ${user.email}\nFirst Name: ${user.firstName}\nLast Name: ${user.lastName}\nAdmin: ${user.admin}\nStatus: ${user.status}\nLanguage: ${user.language}`,
+        },
+      ],
+    };
+  }
+
+  // Status handlers
+  private async handleGetStatuses(args: any) {
+    const validatedArgs = GetStatusesArgsSchema.parse(args);
+    const queryParams = {
+      ...(validatedArgs.offset !== undefined && { offset: validatedArgs.offset }),
+      ...(validatedArgs.pageSize !== undefined && { pageSize: validatedArgs.pageSize }),
+      ...(validatedArgs.filters !== undefined && { filters: validatedArgs.filters }),
+    };
+    const result = await this.client.getStatuses(queryParams);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Found ${result.total} statuses:\n\n${result._embedded.elements
+            .map((status: any) => `- ${status.id}: ${status.name} (${status.isClosed ? 'Closed' : 'Open'}) - ${status.defaultDoneRatio || 0}% done - Color: ${status.color || 'Default'}`)
+            .join('\n')}`,
         },
       ],
     };

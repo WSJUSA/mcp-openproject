@@ -8,6 +8,7 @@ import {
   TimeEntry,
   Grid,
   Board,
+  StatusCollectionResponse,
   CollectionResponse,
   QueryParams,
   OpenProjectError,
@@ -17,6 +18,7 @@ import {
   TimeEntrySchema,
   GridSchema,
   BoardSchema,
+  StatusCollectionResponseSchema,
   CollectionResponseSchema,
 } from '../types/openproject.js';
 import { logger } from '../utils/logger.js';
@@ -538,6 +540,13 @@ export class OpenProjectClient {
 
   async deleteUser(id: number): Promise<void> {
     await this.axiosInstance.delete(`/users/${id}`);
+  }
+
+  // Statuses API
+  async getStatuses(params: QueryParams = {}): Promise<StatusCollectionResponse> {
+    const queryString = this.buildQueryString(params);
+    const response = await this.axiosInstance.get(`/statuses${queryString}`);
+    return StatusCollectionResponseSchema.parse(response.data);
   }
 
   // Time Entries API

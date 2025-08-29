@@ -510,7 +510,84 @@ export class OpenProjectClient {
         newLockVersion: response.data.lockVersion
       });
       
-      return WorkPackageSchema.parse(response.data);
+      // Transform the response data to match schema expectations (same as getWorkPackage)
+      const transformedResponseData = { ...response.data };
+      
+      // Transform status from _links.status to status object
+      if (transformedResponseData._links?.status) {
+        const statusHref = transformedResponseData._links.status.href;
+        const statusId = statusHref ? parseInt(statusHref.split('/').pop() || '0') : null;
+        if (statusId) {
+          transformedResponseData.status = {
+            id: statusId,
+            name: transformedResponseData._links.status.title || 'Unknown'
+          };
+        }
+      }
+      
+      // Transform project from _links.project to project object
+      if (transformedResponseData._links?.project) {
+        const projectHref = transformedResponseData._links.project.href;
+        const projectId = projectHref ? parseInt(projectHref.split('/').pop() || '0') : null;
+        if (projectId) {
+          transformedResponseData.project = {
+            id: projectId,
+            name: transformedResponseData._links.project.title || 'Unknown'
+          };
+        }
+      }
+      
+      // Transform type from _links.type to type object
+      if (transformedResponseData._links?.type) {
+        const typeHref = transformedResponseData._links.type.href;
+        const typeId = typeHref ? parseInt(typeHref.split('/').pop() || '0') : null;
+        if (typeId) {
+          transformedResponseData.type = {
+            id: typeId,
+            name: transformedResponseData._links.type.title || 'Unknown'
+          };
+        }
+      }
+      
+      // Transform priority from _links.priority to priority object
+      if (transformedResponseData._links?.priority) {
+        const priorityHref = transformedResponseData._links.priority.href;
+        const priorityId = priorityHref ? parseInt(priorityHref.split('/').pop() || '0') : null;
+        if (priorityId) {
+          transformedResponseData.priority = {
+            id: priorityId,
+            name: transformedResponseData._links.priority.title || 'Unknown'
+          };
+        }
+      }
+      
+      // Transform assignee from _links.assignee to assignee object
+      if (transformedResponseData._links?.assignee) {
+        const assigneeHref = transformedResponseData._links.assignee.href;
+        const assigneeId = assigneeHref ? parseInt(assigneeHref.split('/').pop() || '0') : null;
+        if (assigneeId) {
+          transformedResponseData.assignee = {
+            id: assigneeId,
+            name: transformedResponseData._links.assignee.title || 'Unknown'
+          };
+        }
+      }
+      
+      // Transform responsible from _links.responsible to responsible object
+      if (transformedResponseData._links?.responsible) {
+        const responsibleHref = transformedResponseData._links.responsible.href;
+        const responsibleId = responsibleHref ? parseInt(responsibleHref.split('/').pop() || '0') : null;
+        if (responsibleId) {
+          transformedResponseData.responsible = {
+            id: responsibleId,
+            name: transformedResponseData._links.responsible.title || 'Unknown'
+          };
+        }
+      }
+      
+      logger.debug('Transformed update response data', { transformedResponseData });
+      
+      return WorkPackageSchema.parse(transformedResponseData);
     } catch (error: any) {
       const duration = Date.now() - startTime;
       logger.error(`updateWorkPackage failed (${duration}ms)`, {

@@ -35,6 +35,8 @@ import {
   DeleteMembershipArgsSchema,
   GetRolesArgsSchema,
   GetRoleArgsSchema,
+  UploadAttachmentArgsSchema,
+  GetAttachmentsArgsSchema,
 } from '../tools/index.js';
 
 export class OpenProjectToolHandlers {
@@ -170,6 +172,14 @@ export class OpenProjectToolHandlers {
           break;
         case 'get_role':
           result = await this.handleGetRole(args);
+          break;
+
+        // Upload Attachment handlers
+        case 'upload_attachment':
+          result = await this.handleUploadAttachment(args);
+          break;
+        case 'get_attachments':
+          result = await this.handleGetAttachments(args);
           break;
 
         // Utility handlers
@@ -1092,6 +1102,56 @@ export class OpenProjectToolHandlers {
         ],
       };
     }
+
+  // Upload Attachment handlers
+  private async handleUploadAttachment(args: any) {
+    const validatedArgs = UploadAttachmentArgsSchema.parse(args);
+    const attachment = await this.client.uploadAttachment(
+      validatedArgs.workPackageId,
+      validatedArgs.fileName,
+      validatedArgs.fileContent,
+      validatedArgs.contentType,
+      validatedArgs.description
+    );
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `File uploaded successfully:\n\nFile: ${attachment.fileName}\nSize: ${attachment.fileSize} bytes\nType: ${attachment.contentType}\nAttachment ID: ${attachment.id}\nWork Package ID: ${validatedArgs.workPackageId}\nUploaded: ${attachment.createdAt}`,
+        },
+      ],
+    };
+  }
+
+  private async handleGetAttachments(args: any) {
+    const validatedArgs = GetAttachmentsArgsSchema.parse(args);
+    const result = await this.client.getWorkPackageAttachments(validatedArgs.workPackageId);
+
+    if (result.total === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `No attachments found for work package ID ${validatedArgs.workPackageId}.`,
+          },
+        ],
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Found ${result.total} attachments for work package ID ${validatedArgs.workPackageId}:\n\n${result._embedded.elements
+            .map((attachment: any) => 
+              `- ${attachment.fileName} (ID: ${attachment.id})\n  Size: ${attachment.fileSize} bytes\n  Type: ${attachment.contentType}\n  Description: ${attachment.description || 'No description'}\n  Uploaded: ${attachment.createdAt}`
+            )
+            .join('\n\n')}`,
+        },
+      ],
+    };
+  }
 
   // Utility handlers
   private async handleTestConnection() {

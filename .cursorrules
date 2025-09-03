@@ -1,0 +1,87 @@
+# OpenProject MCP Server Development Rules
+
+## Core Development Rules
+
+### 1. OpenProject API Testing Requirements
+- **ALWAYS test OpenProject HTTP APIs directly using curl/HTTP clients** to confirm proper API functionality when developing a new feature
+- **DO NOT test through MCP tools** - MCP tools are just wrappers around the APIs
+- Use authentication from `.env` file for direct API testing
+- Verify endpoints, parameters, and responses work as expected
+- Test both success and error scenarios
+- Document any API limitations or unexpected behaviors
+- Use OpenProject API learnings to develop MCP tools that interface to those APIs
+
+**Example of Direct API Testing:**
+```bash
+# Test OpenProject statuses endpoint directly with curl
+curl -u "apikey:YOUR_API_KEY" "https://your-instance.openproject.com/api/v3/statuses"
+
+# Test work package update directly
+curl -X PATCH -u "apikey:YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "https://your-instance.openproject.com/api/v3/work_packages/2" \
+  -d '{"lockVersion": 1, "_links": {"status": {"href": "/api/v3/statuses/1"}}}'
+```
+
+**What NOT to do:**
+- Don't test by calling MCP tools like `mcp_openproject_get_statuses`
+- MCP tools are the implementation, not the testing method
+
+### 2. MCP Server Management
+- Ensure server is restarted and running before testing new functionality
+- Use appropriate npm scripts for development and production
+- Follow proper procedures for relaunching the MCP server after code changes
+    1. pm2 stop mcp-openproject 
+    2. pm2 delete mcp-openproject
+    3. npm run build
+    4. pm2 start dist/index.js --name mcp-openproject
+    5. stop and ask user to restart the MCP server in Cursor
+
+### 3. Blocked Work Protocol
+- If stuck on a technical issue, **immediately update the ticket** with:
+  - Clear description of the sticking point
+  - What has been tried
+  - Current error messages or issues
+  - Next steps needed
+- **Assign the ticket to Will James** for assistance
+- Do not spend excessive time trying to resolve blocking issues alone
+- Do not write to file journals
+
+### 4. Cleanup and Deletion Protocol
+- If something needs to be deleted (files, code, etc.):
+  - **Note it in the ticket** for deletion later
+  - **Do NOT get stuck waiting for delete approval**
+  - Continue with implementation and mark deletion as a separate task
+  - Use TODO comments in code to mark items for cleanup
+
+## Development Workflow
+
+### Development Order (MUST FOLLOW):
+1. **FIRST**: Test OpenProject HTTP APIs directly with curl/HTTP clients
+2. **SECOND**: Implement MCP tools based on working API understanding
+3. **THIRD**: Test MCP server functionality
+4. **FOURTH**: Update ticket and mark complete
+
+### Before Marking Work Complete:
+1. ✅ Code compiles without errors
+2. ✅ OpenProject HTTP APIs tested directly with curl/HTTP clients and working
+3. ✅ MCP server functionality verified
+4. ✅ Ticket updated with implementation details
+5. ✅ Any cleanup items noted for future action
+
+### When Blocked:
+1. 🔴 Stop current work immediately
+2. 🔴 Update ticket with blocking issue details
+3. 🔴 Assign to Will James
+4. 🔴 Move to next available task
+
+### Code Quality Standards:
+- Use TypeScript strict mode
+- Implement proper error handling
+- Add comprehensive logging
+- Follow existing code patterns
+
+## File Management
+- Keep `.cursorrules` in version control for team consistency
+- Update rules as project evolves
+- Document any new patterns or requirements

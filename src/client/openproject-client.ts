@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import https from 'https';
+import FormData from 'form-data';
 import {
   OpenProjectConfig,
   Project,
@@ -26,8 +27,12 @@ import {
   RoleCollectionResponse,
   RoleCollectionResponseSchema,
   RoleSchema,
+  AttachmentSchema,
+  AttachmentCollectionResponseSchema,
   Membership,
   Role,
+  Attachment,
+  AttachmentCollectionResponse,
 } from '../types/openproject.js';
 import { logger } from '../utils/logger.js';
 
@@ -1065,5 +1070,91 @@ export class OpenProjectClient {
     }
     
     return transformedData;
+  }
+
+  // Attachment API methods
+  async uploadAttachment(workPackageId: number, fileName: string, fileContent: string, contentType?: string, description?: string): Promise<Attachment> {
+    const startTime = Date.now();
+    const url = `/work_packages/${workPackageId}/attachments`;
+    
+    try {
+      // Decode base64 content
+      const buffer = Buffer.from(fileContent, 'base64');
+      
+      // Create FormData for multipart upload
+      const formData = new FormData();
+      
+      formData.append('file', buffer, {
+        filename: fileName,
+        contentType: contentType || 'application/octet-stream'
+      });
+      
+      if (description) {
+        formData.append('description', description);
+      }
+      
+      logger.logApiRequest('POST', url, { fileName, contentType, description }, { workPackageId });
+      
+      const response = await this.axiosInstance.post(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      logger.logApiResponse('POST', url, response.status, response.headers, response.data);
+      logger.logRawData('uploadAttachment response', response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`uploadAttachment completed successfully (${duration}ms)`, {
+        workPackageId,
+        fileName,
+        attachmentId: response.data?.id,
+        fileSize: response.data?.fileSize
+      });
+      
+      return AttachmentSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`uploadAttachment failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        workPackageId,
+        fileName
+      });
+      throw error;
+    }
+  }
+
+  async getWorkPackageAttachments(workPackageId: number): Promise<AttachmentCollectionResponse> {
+    const startTime = Date.now();
+    const url = `/work_packages/${workPackageId}/attachments`;
+    
+    try {
+      logger.logApiRequest('GET', url, undefined, { workPackageId });
+      const response = await this.axiosInstance.get(url);
+      
+      logger.logApiResponse('GET', url, response.status, response.headers, response.data);
+      logger.logRawData('getWorkPackageAttachments response', response.data);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`getWorkPackageAttachments completed successfully (${duration}ms)`, {
+        workPackageId,
+        totalAttachments: response.data?.total,
+        returnedCount: response.data?._embedded?.elements?.length
+      });
+      
+      return AttachmentCollectionResponseSchema.parse(response.data);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`getWorkPackageAttachments failed (${duration}ms)`, {
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        workPackageId
+      });
+      throw error;
+    }
   }
 }

@@ -279,6 +279,48 @@ export const RoleSchema = z.object({
   }),
 });
 
+// Attachment schemas
+export const AttachmentSchema = z.object({
+  _type: z.literal('Attachment'),
+  id: z.number(),
+  fileName: z.string(),
+  fileSize: z.number(),
+  contentType: z.string(),
+  description: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  _links: z.object({
+    self: z.object({
+      href: z.string(),
+      title: z.string(),
+    }),
+    author: z.object({
+      href: z.string(),
+      title: z.string(),
+    }),
+    container: z.object({
+      href: z.string(),
+      title: z.string(),
+    }),
+    downloadLocation: z.object({
+      href: z.string(),
+    }),
+  }),
+});
+
+// Attachment collection response schema
+export const AttachmentCollectionResponseSchema = z.object({
+  _type: z.literal('Collection'),
+  total: z.number(),
+  count: z.number(),
+  pageSize: z.number().optional(),
+  offset: z.number().optional(),
+  _embedded: z.object({
+    elements: z.array(AttachmentSchema),
+  }),
+  _links: z.record(z.any()).optional(),
+});
+
 // Membership schemas
 export const MembershipSchema = z.object({
   _type: z.literal('Membership'),
@@ -362,6 +404,8 @@ export type StatusCollectionResponse = z.infer<typeof StatusCollectionResponseSc
 export type CollectionResponse = z.infer<typeof CollectionResponseSchema>;
 export type Membership = z.infer<typeof MembershipSchema>;
 export type Role = z.infer<typeof RoleSchema>;
+export type Attachment = z.infer<typeof AttachmentSchema>;
+export type AttachmentCollectionResponse = z.infer<typeof AttachmentCollectionResponseSchema>;
 export type MembershipCollectionResponse = z.infer<typeof MembershipCollectionResponseSchema>;
 export type RoleCollectionResponse = z.infer<typeof RoleCollectionResponseSchema>;
 export type OpenProjectConfig = z.infer<typeof OpenProjectConfigSchema>;

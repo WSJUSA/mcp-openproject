@@ -217,6 +217,20 @@ const GetRoleArgsSchema = z.object({
   id: z.number(),
 });
 
+// Upload Attachment argument schema
+const UploadAttachmentArgsSchema = z.object({
+  workPackageId: z.number(),
+  fileName: z.string(),
+  fileContent: z.string(),
+  contentType: z.string().optional(),
+  description: z.string().optional(),
+});
+
+// Get Attachments argument schema
+const GetAttachmentsArgsSchema = z.object({
+  workPackageId: z.number(),
+});
+
 export function createOpenProjectTools(): Tool[] {
   return [
     // Project tools
@@ -1045,6 +1059,54 @@ export function createOpenProjectTools(): Tool[] {
         required: ['id'],
       },
     },
+
+    // Upload Attachment tool
+    {
+      name: 'upload_attachment',
+      description: 'Upload a file attachment to a work package',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          workPackageId: {
+            type: 'number',
+            description: 'Work package ID to attach the file to',
+          },
+          fileName: {
+            type: 'string',
+            description: 'Name of the file to upload',
+          },
+          fileContent: {
+            type: 'string',
+            description: 'Base64 encoded file content',
+          },
+          contentType: {
+            type: 'string',
+            description: 'MIME type of the file (e.g., "text/plain", "image/png")',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional description for the attachment',
+          },
+        },
+        required: ['workPackageId', 'fileName', 'fileContent'],
+      },
+    },
+
+    // Get Attachments tool
+    {
+      name: 'get_attachments',
+      description: 'Get all attachments for a work package',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          workPackageId: {
+            type: 'number',
+            description: 'Work package ID to get attachments for',
+          },
+        },
+        required: ['workPackageId'],
+      },
+    },
   ];
 }
 
@@ -1083,4 +1145,6 @@ export {
   DeleteMembershipArgsSchema,
   GetRolesArgsSchema,
   GetRoleArgsSchema,
+  UploadAttachmentArgsSchema,
+  GetAttachmentsArgsSchema,
 };

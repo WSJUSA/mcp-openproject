@@ -79,9 +79,56 @@ export class OpenProjectClient {
     );
   }
 
-  private buildQueryString(params: QueryParams): string {
+  /**
+   * Formats sortBy parameter from user input to OpenProject API format
+   * Input: "name:asc" or "name:asc,id:desc"
+   * Output formats:
+   *   Projects API: [{"name":"asc"}] or [{"name":"asc"},{"id":"desc"}]
+   *   Work Packages API: [["name","asc"]] or [["name","asc"],["id","desc"]]
+   */
+  private formatSortByParameter(sortBy: string, endpoint: 'projects' | 'work_packages' | 'other' = 'other'): string {
+    try {
+      const sortCriteria = sortBy.split(',').map(criterion => criterion.trim());
+      const formattedCriteria = sortCriteria.map(criterion => {
+        const [field, direction] = criterion.split(':').map(s => s.trim());
+
+        if (!field || !direction) {
+          throw new Error(`Invalid sort criterion format: ${criterion}. Expected format: field:direction`);
+        }
+
+        // Normalize direction
+        let normalizedDirection: string;
+        switch (direction.toLowerCase()) {
+          case 'asc':
+          case 'ascending':
+            normalizedDirection = 'asc';
+            break;
+          case 'desc':
+          case 'descending':
+            normalizedDirection = 'desc';
+            break;
+          default:
+            throw new Error(`Invalid sort direction: ${direction}. Must be asc/desc/ascending/descending`);
+        }
+
+        // Return different format based on endpoint
+        if (endpoint === 'work_packages') {
+          return [field, normalizedDirection];
+        } else {
+          return { [field]: normalizedDirection };
+        }
+      });
+
+      return JSON.stringify(formattedCriteria);
+    } catch (error) {
+      logger.error('Error formatting sortBy parameter:', error);
+      throw new Error(`Invalid sortBy format: ${sortBy}. Expected format: "field:direction" or "field:direction,field2:direction2"`);
+    }
+  }
+
+  private buildQueryString(params: QueryParams, endpoint: 'projects' | 'work_packages' | 'other' = 'other'): string {
     const searchParams = new URLSearchParams();
-    
+
     if (params.offset !== undefined) {
       searchParams.append('offset', params.offset.toString());
     }
@@ -92,7 +139,14 @@ export class OpenProjectClient {
       searchParams.append('filters', params.filters);
     }
     if (params.sortBy) {
-      searchParams.append('sortBy', params.sortBy);
+      const formattedSortBy = this.formatSortByParameter(params.sortBy, endpoint);
+
+      // Use different parameter names based on endpoint
+      if (endpoint === 'work_packages') {
+        searchParams.append('sortBy', formattedSortBy);
+      } else {
+        searchParams.append('sort', formattedSortBy);
+      }
     }
     if (params.groupBy) {
       searchParams.append('groupBy', params.groupBy);
@@ -108,7 +162,7 @@ export class OpenProjectClient {
   // Projects API
   async getProjects(params: QueryParams = {}): Promise<CollectionResponse> {
     const startTime = Date.now();
-    const queryString = this.buildQueryString(params);
+    const queryString = this.buildQueryString(params, 'projects');
     const url = `/projects${queryString}`;
     
     try {
@@ -184,7 +238,7 @@ export class OpenProjectClient {
   // Work Packages API
   async getWorkPackages(params: QueryParams = {}): Promise<CollectionResponse> {
     const startTime = Date.now();
-    const queryString = this.buildQueryString(params);
+    const queryString = this.buildQueryString(params, 'work_packages');
     const url = `/work_packages${queryString}`;
     
     try {
@@ -539,7 +593,7 @@ export class OpenProjectClient {
 
   // Users API
   async getUsers(params: QueryParams = {}): Promise<CollectionResponse> {
-    const queryString = this.buildQueryString(params);
+    const queryString = this.buildQueryString(params, 'other');
     const response = await this.axiosInstance.get(`/users${queryString}`);
     return CollectionResponseSchema.parse(response.data);
   }
@@ -570,14 +624,14 @@ export class OpenProjectClient {
 
   // Statuses API
   async getStatuses(params: QueryParams = {}): Promise<StatusCollectionResponse> {
-    const queryString = this.buildQueryString(params);
+    const queryString = this.buildQueryString(params, 'other');
     const response = await this.axiosInstance.get(`/statuses${queryString}`);
     return StatusCollectionResponseSchema.parse(response.data);
   }
 
   // Time Entries API
   async getTimeEntries(params: QueryParams = {}): Promise<CollectionResponse> {
-    const queryString = this.buildQueryString(params);
+    const queryString = this.buildQueryString(params, 'other');
     const response = await this.axiosInstance.get(`/time_entries${queryString}`);
     return CollectionResponseSchema.parse(response.data);
   }
@@ -604,7 +658,7 @@ export class OpenProjectClient {
   // Membership API methods
   async getMemberships(params: QueryParams = {}): Promise<MembershipCollectionResponse> {
     const startTime = Date.now();
-    const queryString = this.buildQueryString(params);
+    const queryString = this.buildQueryString(params, 'other');
     const url = `/memberships${queryString}`;
     
     try {
@@ -766,7 +820,7 @@ export class OpenProjectClient {
   // Role API methods
   async getRoles(params: QueryParams = {}): Promise<RoleCollectionResponse> {
     const startTime = Date.now();
-    const queryString = this.buildQueryString(params);
+    const queryString = this.buildQueryString(params, 'other');
     const url = `/roles${queryString}`;
     
     try {
@@ -889,7 +943,7 @@ export class OpenProjectClient {
 
   // Grid/Board API methods for Kanban functionality
   async getGrids(params: QueryParams = {}): Promise<CollectionResponse> {
-    const queryString = this.buildQueryString(params);
+    const queryString = this.buildQueryString(params, 'other');
     const response = await this.axiosInstance.get(`/grids${queryString}`);
     return CollectionResponseSchema.parse(response.data);
   }
@@ -1084,7 +1138,7 @@ export class OpenProjectClient {
       // Create FormData for multipart upload
       const formData = new FormData();
       
-      formData.append('file', buffer, {
+      formData.append('attachment', buffer, {
         filename: fileName,
         contentType: contentType || 'application/octet-stream'
       });
@@ -1097,8 +1151,7 @@ export class OpenProjectClient {
       
       const response = await this.axiosInstance.post(url, formData, {
         headers: {
-          ...formData.getHeaders(),
-          'Content-Type': 'multipart/form-data'
+          ...formData.getHeaders()
         }
       });
       

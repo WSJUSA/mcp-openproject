@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
 import https from 'https';
-import FormData from 'form-data';
 import {
   OpenProjectConfig,
   Project,
@@ -79,56 +78,9 @@ export class OpenProjectClient {
     );
   }
 
-  /**
-   * Formats sortBy parameter from user input to OpenProject API format
-   * Input: "name:asc" or "name:asc,id:desc"
-   * Output formats:
-   *   Projects API: [{"name":"asc"}] or [{"name":"asc"},{"id":"desc"}]
-   *   Work Packages API: [["name","asc"]] or [["name","asc"],["id","desc"]]
-   */
-  private formatSortByParameter(sortBy: string, endpoint: 'projects' | 'work_packages' | 'other' = 'other'): string {
-    try {
-      const sortCriteria = sortBy.split(',').map(criterion => criterion.trim());
-      const formattedCriteria = sortCriteria.map(criterion => {
-        const [field, direction] = criterion.split(':').map(s => s.trim());
-
-        if (!field || !direction) {
-          throw new Error(`Invalid sort criterion format: ${criterion}. Expected format: field:direction`);
-        }
-
-        // Normalize direction
-        let normalizedDirection: string;
-        switch (direction.toLowerCase()) {
-          case 'asc':
-          case 'ascending':
-            normalizedDirection = 'asc';
-            break;
-          case 'desc':
-          case 'descending':
-            normalizedDirection = 'desc';
-            break;
-          default:
-            throw new Error(`Invalid sort direction: ${direction}. Must be asc/desc/ascending/descending`);
-        }
-
-        // Return different format based on endpoint
-        if (endpoint === 'work_packages') {
-          return [field, normalizedDirection];
-        } else {
-          return { [field]: normalizedDirection };
-        }
-      });
-
-      return JSON.stringify(formattedCriteria);
-    } catch (error) {
-      logger.error('Error formatting sortBy parameter:', error);
-      throw new Error(`Invalid sortBy format: ${sortBy}. Expected format: "field:direction" or "field:direction,field2:direction2"`);
-    }
-  }
-
-  private buildQueryString(params: QueryParams, endpoint: 'projects' | 'work_packages' | 'other' = 'other'): string {
+  private buildQueryString(params: QueryParams): string {
     const searchParams = new URLSearchParams();
-
+    
     if (params.offset !== undefined) {
       searchParams.append('offset', params.offset.toString());
     }
@@ -139,14 +91,7 @@ export class OpenProjectClient {
       searchParams.append('filters', params.filters);
     }
     if (params.sortBy) {
-      const formattedSortBy = this.formatSortByParameter(params.sortBy, endpoint);
-
-      // Use different parameter names based on endpoint
-      if (endpoint === 'work_packages') {
-        searchParams.append('sortBy', formattedSortBy);
-      } else {
-        searchParams.append('sort', formattedSortBy);
-      }
+      searchParams.append('sortBy', params.sortBy);
     }
     if (params.groupBy) {
       searchParams.append('groupBy', params.groupBy);
@@ -162,7 +107,7 @@ export class OpenProjectClient {
   // Projects API
   async getProjects(params: QueryParams = {}): Promise<CollectionResponse> {
     const startTime = Date.now();
-    const queryString = this.buildQueryString(params, 'projects');
+    const queryString = this.buildQueryString(params);
     const url = `/projects${queryString}`;
     
     try {
@@ -238,7 +183,7 @@ export class OpenProjectClient {
   // Work Packages API
   async getWorkPackages(params: QueryParams = {}): Promise<CollectionResponse> {
     const startTime = Date.now();
-    const queryString = this.buildQueryString(params, 'work_packages');
+    const queryString = this.buildQueryString(params);
     const url = `/work_packages${queryString}`;
     
     try {
@@ -593,7 +538,7 @@ export class OpenProjectClient {
 
   // Users API
   async getUsers(params: QueryParams = {}): Promise<CollectionResponse> {
-    const queryString = this.buildQueryString(params, 'other');
+    const queryString = this.buildQueryString(params);
     const response = await this.axiosInstance.get(`/users${queryString}`);
     return CollectionResponseSchema.parse(response.data);
   }
@@ -624,14 +569,14 @@ export class OpenProjectClient {
 
   // Statuses API
   async getStatuses(params: QueryParams = {}): Promise<StatusCollectionResponse> {
-    const queryString = this.buildQueryString(params, 'other');
+    const queryString = this.buildQueryString(params);
     const response = await this.axiosInstance.get(`/statuses${queryString}`);
     return StatusCollectionResponseSchema.parse(response.data);
   }
 
   // Time Entries API
   async getTimeEntries(params: QueryParams = {}): Promise<CollectionResponse> {
-    const queryString = this.buildQueryString(params, 'other');
+    const queryString = this.buildQueryString(params);
     const response = await this.axiosInstance.get(`/time_entries${queryString}`);
     return CollectionResponseSchema.parse(response.data);
   }
@@ -658,7 +603,7 @@ export class OpenProjectClient {
   // Membership API methods
   async getMemberships(params: QueryParams = {}): Promise<MembershipCollectionResponse> {
     const startTime = Date.now();
-    const queryString = this.buildQueryString(params, 'other');
+    const queryString = this.buildQueryString(params);
     const url = `/memberships${queryString}`;
     
     try {
@@ -820,7 +765,7 @@ export class OpenProjectClient {
   // Role API methods
   async getRoles(params: QueryParams = {}): Promise<RoleCollectionResponse> {
     const startTime = Date.now();
-    const queryString = this.buildQueryString(params, 'other');
+    const queryString = this.buildQueryString(params);
     const url = `/roles${queryString}`;
     
     try {
@@ -943,7 +888,7 @@ export class OpenProjectClient {
 
   // Grid/Board API methods for Kanban functionality
   async getGrids(params: QueryParams = {}): Promise<CollectionResponse> {
-    const queryString = this.buildQueryString(params, 'other');
+    const queryString = this.buildQueryString(params);
     const response = await this.axiosInstance.get(`/grids${queryString}`);
     return CollectionResponseSchema.parse(response.data);
   }
@@ -1127,31 +1072,96 @@ export class OpenProjectClient {
   }
 
   // Attachment API methods
-  async uploadAttachment(workPackageId: number, fileName: string, fileContent: string, contentType?: string, description?: string): Promise<Attachment> {
+  async uploadAttachment(workPackageId: number, filePath: string, description?: string): Promise<Attachment> {
     const startTime = Date.now();
     const url = `/work_packages/${workPackageId}/attachments`;
     
     try {
-      // Decode base64 content
-      const buffer = Buffer.from(fileContent, 'base64');
+      // Import fs and path modules for file operations
+      const fs = await import('fs');
+      const path = await import('path');
       
-      // Create FormData for multipart upload
-      const formData = new FormData();
-      
-      formData.append('attachment', buffer, {
-        filename: fileName,
-        contentType: contentType || 'application/octet-stream'
-      });
-      
-      if (description) {
-        formData.append('description', description);
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found: ${filePath}`);
       }
       
-      logger.logApiRequest('POST', url, { fileName, contentType, description }, { workPackageId });
+      // Get file stats and determine content type
+      const stats = fs.statSync(filePath);
+      const fileName = path.basename(filePath);
+      const fileExtension = path.extname(filePath).toLowerCase();
       
-      const response = await this.axiosInstance.post(url, formData, {
+      // Determine content type based on file extension
+      const contentTypeMap: Record<string, string> = {
+        '.txt': 'text/plain',
+        '.md': 'text/markdown',
+        '.json': 'application/json',
+        '.xml': 'application/xml',
+        '.pdf': 'application/pdf',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.xls': 'application/vnd.ms-excel',
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        '.ppt': 'application/vnd.ms-powerpoint',
+        '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+        '.zip': 'application/zip',
+        '.tar': 'application/x-tar',
+        '.gz': 'application/gzip',
+        '.csv': 'text/csv',
+        '.html': 'text/html',
+        '.css': 'text/css',
+        '.js': 'application/javascript',
+        '.ts': 'application/typescript',
+        '.py': 'text/x-python',
+        '.java': 'text/x-java-source',
+        '.cpp': 'text/x-c++src',
+        '.c': 'text/x-csrc',
+        '.h': 'text/x-chdr',
+        '.sql': 'application/sql',
+        '.yaml': 'application/x-yaml',
+        '.yml': 'application/x-yaml',
+      };
+      
+      const contentType = contentTypeMap[fileExtension] || 'application/octet-stream';
+      
+      // Read file content
+      const fileBuffer = fs.readFileSync(filePath);
+      
+      // Manually construct multipart form data to avoid FormData issues
+      const boundary = `----WebKitFormBoundary${Math.random().toString(36).substring(2)}`;
+
+      // Create metadata part
+      const metadata = {
+        fileName: fileName,
+        ...(description && { description: description })
+      };
+      const metadataPart = `--${boundary}\r\nContent-Disposition: form-data; name="metadata"\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(metadata)}\r\n`;
+
+      // Create file part
+      const filePart = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: ${contentType}\r\n\r\n`;
+
+      // Combine all parts
+      const endBoundary = `--${boundary}--\r\n`;
+      const body = Buffer.concat([
+        Buffer.from(metadataPart),
+        Buffer.from(filePart),
+        fileBuffer,
+        Buffer.from('\r\n' + endBoundary)
+      ]);
+
+      logger.logApiRequest('POST', url, { filePath, fileName, contentType, fileSize: stats.size, description }, { workPackageId });
+      logger.debug('Manual multipart boundary', boundary);
+      logger.debug('File buffer length', fileBuffer.length);
+
+      const response = await this.axiosInstance.post(url, body, {
         headers: {
-          ...formData.getHeaders()
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Length': body.length.toString()
         }
       });
       
@@ -1161,9 +1171,11 @@ export class OpenProjectClient {
       const duration = Date.now() - startTime;
       logger.info(`uploadAttachment completed successfully (${duration}ms)`, {
         workPackageId,
+        filePath,
         fileName,
+        fileSize: stats.size,
         attachmentId: response.data?.id,
-        fileSize: response.data?.fileSize
+        uploadedFileSize: response.data?.fileSize
       });
       
       return AttachmentSchema.parse(response.data);
@@ -1174,7 +1186,7 @@ export class OpenProjectClient {
         status: error.response?.status,
         responseData: error.response?.data,
         workPackageId,
-        fileName
+        filePath
       });
       throw error;
     }

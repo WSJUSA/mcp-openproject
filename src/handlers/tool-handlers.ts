@@ -1108,9 +1108,7 @@ export class OpenProjectToolHandlers {
     const validatedArgs = UploadAttachmentArgsSchema.parse(args);
     const attachment = await this.client.uploadAttachment(
       validatedArgs.workPackageId,
-      validatedArgs.fileName,
-      validatedArgs.fileContent,
-      validatedArgs.contentType,
+      validatedArgs.filePath,
       validatedArgs.description
     );
 
@@ -1118,7 +1116,7 @@ export class OpenProjectToolHandlers {
       content: [
         {
           type: 'text',
-          text: `File uploaded successfully:\n\nFile: ${attachment.fileName}\nSize: ${attachment.fileSize} bytes\nType: ${attachment.contentType}\nAttachment ID: ${attachment.id}\nWork Package ID: ${validatedArgs.workPackageId}\nUploaded: ${attachment.createdAt}`,
+          text: `File uploaded successfully:\n\nFile: ${attachment.fileName}\nPath: ${validatedArgs.filePath}\nSize: ${attachment.fileSize} bytes\nAttachment ID: ${attachment.id}\nWork Package ID: ${validatedArgs.workPackageId}`,
         },
       ],
     };
@@ -1144,9 +1142,19 @@ export class OpenProjectToolHandlers {
         {
           type: 'text',
           text: `Found ${result.total} attachments for work package ID ${validatedArgs.workPackageId}:\n\n${result._embedded.elements
-            .map((attachment: any) => 
-              `- ${attachment.fileName} (ID: ${attachment.id})\n  Size: ${attachment.fileSize} bytes\n  Type: ${attachment.contentType}\n  Description: ${attachment.description || 'No description'}\n  Uploaded: ${attachment.createdAt}`
-            )
+            .map((attachment: any) => {
+              // Handle description which can be string or object
+              let descriptionText = 'No description';
+              if (attachment.description) {
+                if (typeof attachment.description === 'string') {
+                  descriptionText = attachment.description;
+                } else if (typeof attachment.description === 'object' && attachment.description.raw) {
+                  descriptionText = attachment.description.raw;
+                }
+              }
+
+              return `- ${attachment.fileName} (ID: ${attachment.id})\n  Size: ${attachment.fileSize} bytes\n  Description: ${descriptionText}`;
+            })
             .join('\n\n')}`,
         },
       ],

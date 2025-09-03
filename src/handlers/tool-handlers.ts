@@ -10,6 +10,7 @@ import {
   GetWorkPackagesArgsSchema,
   GetWorkPackageArgsSchema,
   CreateWorkPackageArgsSchema,
+  CreateTaskArgsSchema,
   UpdateWorkPackageArgsSchema,
   SetWorkPackageStatusArgsSchema,
   DeleteWorkPackageArgsSchema,
@@ -78,6 +79,9 @@ export class OpenProjectToolHandlers {
           break;
         case 'create_work_package':
           result = await this.handleCreateWorkPackage(args);
+          break;
+        case 'create_task':
+          result = await this.handleCreateTask(args);
           break;
         case 'update_work_package':
           result = await this.handleUpdateWorkPackage(args);
@@ -456,7 +460,7 @@ export class OpenProjectToolHandlers {
 
   private async handleCreateWorkPackage(args: any) {
     const validatedArgs = CreateWorkPackageArgsSchema.parse(args);
-    
+
     // Transform the arguments to match OpenProject API format
     const workPackageData = {
       subject: validatedArgs.subject,
@@ -472,14 +476,46 @@ export class OpenProjectToolHandlers {
         ...(validatedArgs.assigneeId && { assignee: { href: `/api/v3/users/${validatedArgs.assigneeId}` } }),
       },
     };
-    
+
     const workPackage = await this.client.createWorkPackage(workPackageData);
-    
+
     return {
       content: [
         {
           type: 'text',
           text: `Work package created successfully:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nProject: ${workPackage.project?.name || 'Unknown'}\nType: ${workPackage.type?.name || 'Unknown'}\nStatus: ${workPackage.status?.name || 'Unknown'}`,
+        },
+      ],
+    };
+  }
+
+  private async handleCreateTask(args: any) {
+    const validatedArgs = CreateTaskArgsSchema.parse(args);
+
+    // Transform the arguments to match OpenProject API format
+    // Automatically set typeId to 1 (Task type) as specified in the requirements
+    const workPackageData = {
+      subject: validatedArgs.subject,
+      ...(validatedArgs.description !== undefined && { description: validatedArgs.description }),
+      ...(validatedArgs.startDate !== undefined && { startDate: validatedArgs.startDate }),
+      ...(validatedArgs.dueDate !== undefined && { dueDate: validatedArgs.dueDate }),
+      ...(validatedArgs.estimatedTime !== undefined && { estimatedTime: validatedArgs.estimatedTime }),
+      _links: {
+        project: { href: `/api/v3/projects/${validatedArgs.projectId}` },
+        type: { href: `/api/v3/types/1` }, // Always set to Task type (ID: 1)
+        ...(validatedArgs.statusId && { status: { href: `/api/v3/statuses/${validatedArgs.statusId}` } }),
+        ...(validatedArgs.priorityId && { priority: { href: `/api/v3/priorities/${validatedArgs.priorityId}` } }),
+        ...(validatedArgs.assigneeId && { assignee: { href: `/api/v3/users/${validatedArgs.assigneeId}` } }),
+      },
+    };
+
+    const workPackage = await this.client.createWorkPackage(workPackageData);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Task created successfully:\n\nSubject: ${workPackage.subject}\nID: ${workPackage.id}\nProject: ${workPackage.project?.name || 'Unknown'}\nType: ${workPackage.type?.name || 'Task'}\nStatus: ${workPackage.status?.name || 'Unknown'}`,
         },
       ],
     };

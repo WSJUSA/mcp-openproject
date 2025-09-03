@@ -57,6 +57,18 @@ const CreateWorkPackageArgsSchema = z.object({
   estimatedTime: z.string().optional(),
 });
 
+const CreateTaskArgsSchema = z.object({
+  subject: z.string(),
+  description: z.string().optional(),
+  projectId: z.number(),
+  statusId: z.number().optional(),
+  priorityId: z.number().optional(),
+  assigneeId: z.number().optional(),
+  startDate: z.string().optional(),
+  dueDate: z.string().optional(),
+  estimatedTime: z.string().optional(),
+});
+
 const UpdateWorkPackageArgsSchema = z.object({
   id: z.number(),
   subject: z.string().optional(),
@@ -434,6 +446,52 @@ export function createOpenProjectTools(): Tool[] {
           },
         },
         required: ['subject', 'projectId', 'typeId'],
+      },
+    },
+    {
+      name: 'create_task',
+      description: 'Create a new task in OpenProject (automatically sets type to Task)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+            description: 'Task subject/title',
+          },
+          description: {
+            type: 'string',
+            description: 'Task description',
+          },
+          projectId: {
+            type: 'number',
+            description: 'Project ID',
+          },
+          statusId: {
+            type: 'number',
+            description: 'Status ID',
+          },
+          priorityId: {
+            type: 'number',
+            description: 'Priority ID',
+          },
+          assigneeId: {
+            type: 'number',
+            description: 'Assignee user ID',
+          },
+          startDate: {
+            type: 'string',
+            description: 'Start date (YYYY-MM-DD)',
+          },
+          dueDate: {
+            type: 'string',
+            description: 'Due date (YYYY-MM-DD)',
+          },
+          estimatedTime: {
+            type: 'string',
+            description: 'Estimated time (e.g., "PT8H" for 8 hours)',
+          },
+        },
+        required: ['subject', 'projectId'],
       },
     },
     {
@@ -1110,6 +1168,7 @@ export {
   GetWorkPackagesArgsSchema,
   GetWorkPackageArgsSchema,
   CreateWorkPackageArgsSchema,
+  CreateTaskArgsSchema,
   UpdateWorkPackageArgsSchema,
   SetWorkPackageStatusArgsSchema,
   DeleteWorkPackageArgsSchema,

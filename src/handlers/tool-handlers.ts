@@ -1108,9 +1108,7 @@ export class OpenProjectToolHandlers {
     const validatedArgs = UploadAttachmentArgsSchema.parse(args);
     const attachment = await this.client.uploadAttachment(
       validatedArgs.workPackageId,
-      validatedArgs.fileName,
-      validatedArgs.fileContent,
-      validatedArgs.contentType,
+      validatedArgs.filePath,
       validatedArgs.description
     );
 
@@ -1118,7 +1116,7 @@ export class OpenProjectToolHandlers {
       content: [
         {
           type: 'text',
-          text: `File uploaded successfully:\n\nFile: ${attachment.fileName}\nSize: ${attachment.fileSize} bytes\nType: ${attachment.contentType}\nAttachment ID: ${attachment.id}\nWork Package ID: ${validatedArgs.workPackageId}\nUploaded: ${attachment.createdAt}`,
+          text: `File uploaded successfully:\n\nFile: ${attachment.fileName}\nPath: ${validatedArgs.filePath}\nSize: ${attachment.fileSize} bytes\nType: ${attachment.contentType}\nAttachment ID: ${attachment.id}\nWork Package ID: ${validatedArgs.workPackageId}\nUploaded: ${attachment.createdAt}`,
         },
       ],
     };

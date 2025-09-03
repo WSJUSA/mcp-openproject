@@ -220,9 +220,7 @@ const GetRoleArgsSchema = z.object({
 // Upload Attachment argument schema
 const UploadAttachmentArgsSchema = z.object({
   workPackageId: z.number(),
-  fileName: z.string(),
-  fileContent: z.string(),
-  contentType: z.string().optional(),
+  filePath: z.string(),
   description: z.string().optional(),
 });
 
@@ -1071,24 +1069,16 @@ export function createOpenProjectTools(): Tool[] {
             type: 'number',
             description: 'Work package ID to attach the file to',
           },
-          fileName: {
+          filePath: {
             type: 'string',
-            description: 'Name of the file to upload',
-          },
-          fileContent: {
-            type: 'string',
-            description: 'Base64 encoded file content',
-          },
-          contentType: {
-            type: 'string',
-            description: 'MIME type of the file (e.g., "text/plain", "image/png")',
+            description: 'Path to the file to upload (absolute or relative to working directory)',
           },
           description: {
             type: 'string',
             description: 'Optional description for the attachment',
           },
         },
-        required: ['workPackageId', 'fileName', 'fileContent'],
+        required: ['workPackageId', 'filePath'],
       },
     },
 

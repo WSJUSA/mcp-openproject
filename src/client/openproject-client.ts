@@ -1073,27 +1073,79 @@ export class OpenProjectClient {
   }
 
   // Attachment API methods
-  async uploadAttachment(workPackageId: number, fileName: string, fileContent: string, contentType?: string, description?: string): Promise<Attachment> {
+  async uploadAttachment(workPackageId: number, filePath: string, description?: string): Promise<Attachment> {
     const startTime = Date.now();
     const url = `/work_packages/${workPackageId}/attachments`;
     
     try {
-      // Decode base64 content
-      const buffer = Buffer.from(fileContent, 'base64');
+      // Import fs and path modules for file operations
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found: ${filePath}`);
+      }
+      
+      // Get file stats and determine content type
+      const stats = fs.statSync(filePath);
+      const fileName = path.basename(filePath);
+      const fileExtension = path.extname(filePath).toLowerCase();
+      
+      // Determine content type based on file extension
+      const contentTypeMap: Record<string, string> = {
+        '.txt': 'text/plain',
+        '.md': 'text/markdown',
+        '.json': 'application/json',
+        '.xml': 'application/xml',
+        '.pdf': 'application/pdf',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.xls': 'application/vnd.ms-excel',
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        '.ppt': 'application/vnd.ms-powerpoint',
+        '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+        '.zip': 'application/zip',
+        '.tar': 'application/x-tar',
+        '.gz': 'application/gzip',
+        '.csv': 'text/csv',
+        '.html': 'text/html',
+        '.css': 'text/css',
+        '.js': 'application/javascript',
+        '.ts': 'application/typescript',
+        '.py': 'text/x-python',
+        '.java': 'text/x-java-source',
+        '.cpp': 'text/x-c++src',
+        '.c': 'text/x-csrc',
+        '.h': 'text/x-chdr',
+        '.sql': 'application/sql',
+        '.yaml': 'application/x-yaml',
+        '.yml': 'application/x-yaml',
+      };
+      
+      const contentType = contentTypeMap[fileExtension] || 'application/octet-stream';
+      
+      // Read file content
+      const fileBuffer = fs.readFileSync(filePath);
       
       // Create FormData for multipart upload
       const formData = new FormData();
       
-      formData.append('file', buffer, {
+      formData.append('file', fileBuffer, {
         filename: fileName,
-        contentType: contentType || 'application/octet-stream'
+        contentType: contentType
       });
       
       if (description) {
         formData.append('description', description);
       }
       
-      logger.logApiRequest('POST', url, { fileName, contentType, description }, { workPackageId });
+      logger.logApiRequest('POST', url, { filePath, fileName, contentType, fileSize: stats.size, description }, { workPackageId });
       
       const response = await this.axiosInstance.post(url, formData, {
         headers: {
@@ -1108,9 +1160,11 @@ export class OpenProjectClient {
       const duration = Date.now() - startTime;
       logger.info(`uploadAttachment completed successfully (${duration}ms)`, {
         workPackageId,
+        filePath,
         fileName,
+        fileSize: stats.size,
         attachmentId: response.data?.id,
-        fileSize: response.data?.fileSize
+        uploadedFileSize: response.data?.fileSize
       });
       
       return AttachmentSchema.parse(response.data);
@@ -1121,7 +1175,7 @@ export class OpenProjectClient {
         status: error.response?.status,
         responseData: error.response?.data,
         workPackageId,
-        fileName
+        filePath
       });
       throw error;
     }

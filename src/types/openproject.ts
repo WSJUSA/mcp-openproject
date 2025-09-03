@@ -285,10 +285,14 @@ export const AttachmentSchema = z.object({
   id: z.number(),
   fileName: z.string(),
   fileSize: z.number(),
-  contentType: z.string(),
-  description: z.string().optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  description: z.union([
+    z.string(),
+    z.object({
+      format: z.string(),
+      raw: z.string(),
+      html: z.string().optional(),
+    })
+  ]).optional(),
   _links: z.object({
     self: z.object({
       href: z.string(),
@@ -302,8 +306,15 @@ export const AttachmentSchema = z.object({
       href: z.string(),
       title: z.string(),
     }),
+    staticDownloadLocation: z.object({
+      href: z.string(),
+    }),
     downloadLocation: z.object({
       href: z.string(),
+    }),
+    delete: z.object({
+      href: z.string(),
+      method: z.string(),
     }),
   }),
 });

@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
 import https from 'https';
-import FormData from 'form-data';
 import {
   OpenProjectConfig,
   Project,
@@ -1133,24 +1132,36 @@ export class OpenProjectClient {
       // Read file content
       const fileBuffer = fs.readFileSync(filePath);
       
-      // Create FormData for multipart upload
-      const formData = new FormData();
-      
-      formData.append('file', fileBuffer, {
-        filename: fileName,
-        contentType: contentType
-      });
-      
-      if (description) {
-        formData.append('description', description);
-      }
-      
+      // Manually construct multipart form data to avoid FormData issues
+      const boundary = `----WebKitFormBoundary${Math.random().toString(36).substring(2)}`;
+
+      // Create metadata part
+      const metadata = {
+        fileName: fileName,
+        ...(description && { description: description })
+      };
+      const metadataPart = `--${boundary}\r\nContent-Disposition: form-data; name="metadata"\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(metadata)}\r\n`;
+
+      // Create file part
+      const filePart = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: ${contentType}\r\n\r\n`;
+
+      // Combine all parts
+      const endBoundary = `--${boundary}--\r\n`;
+      const body = Buffer.concat([
+        Buffer.from(metadataPart),
+        Buffer.from(filePart),
+        fileBuffer,
+        Buffer.from('\r\n' + endBoundary)
+      ]);
+
       logger.logApiRequest('POST', url, { filePath, fileName, contentType, fileSize: stats.size, description }, { workPackageId });
-      
-      const response = await this.axiosInstance.post(url, formData, {
+      logger.debug('Manual multipart boundary', boundary);
+      logger.debug('File buffer length', fileBuffer.length);
+
+      const response = await this.axiosInstance.post(url, body, {
         headers: {
-          ...formData.getHeaders(),
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Length': body.length.toString()
         }
       });
       

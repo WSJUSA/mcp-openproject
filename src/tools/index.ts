@@ -241,6 +241,12 @@ const GetAttachmentsArgsSchema = z.object({
   workPackageId: z.number(),
 });
 
+// Download Attachment argument schema
+const DownloadAttachmentArgsSchema = z.object({
+  attachmentId: z.number(),
+  outputPath: z.string().optional(),
+});
+
 export function createOpenProjectTools(): Tool[] {
   return [
     // Project tools
@@ -1155,6 +1161,26 @@ export function createOpenProjectTools(): Tool[] {
         required: ['workPackageId'],
       },
     },
+
+    // Download Attachment tool
+    {
+      name: 'download_attachment',
+      description: 'Download an attachment by ID to local disk',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          attachmentId: {
+            type: 'number',
+            description: 'Attachment ID to download',
+          },
+          outputPath: {
+            type: 'string',
+            description: 'Optional path to save the file. Defaults to ./downloads/<fileName>',
+          },
+        },
+        required: ['attachmentId'],
+      },
+    },
   ];
 }
 
@@ -1196,4 +1222,5 @@ export {
   GetRoleArgsSchema,
   UploadAttachmentArgsSchema,
   GetAttachmentsArgsSchema,
+  DownloadAttachmentArgsSchema,
 };

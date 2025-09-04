@@ -1222,4 +1222,91 @@ export class OpenProjectClient {
       throw error;
     }
   }
+
+  async downloadAttachment(attachmentId: number, outputPath?: string): Promise<{ filePath: string; fileName: string; fileSize: number }> {
+    const startTime = Date.now();
+    const metaUrl = `/attachments/${attachmentId}`;
+
+    try {
+      logger.logApiRequest('GET', metaUrl, undefined, { attachmentId });
+      const metaResponse = await this.axiosInstance.get(metaUrl);
+
+      logger.logApiResponse('GET', metaUrl, metaResponse.status, metaResponse.headers, metaResponse.data);
+      logger.logRawData('downloadAttachment metadata response', metaResponse.data);
+
+      const attachment = AttachmentSchema.parse(metaResponse.data);
+
+      // Prefer downloadLocation, fall back to staticDownloadLocation
+      const href = (attachment._links as any).downloadLocation?.href || (attachment._links as any).staticDownloadLocation?.href;
+      if (!href) {
+        throw new Error('Download URL not available for this attachment');
+      }
+
+      // Build absolute download URL to avoid double /api/v3 when href is relative
+      let downloadUrl = href;
+      const instanceBase = this.axiosInstance.defaults.baseURL || '';
+      const apiRoot = instanceBase.replace(/\/api\/v3\/?$/, '');
+      const isAbsolute = /^https?:\/\//i.test(href);
+      if (!isAbsolute) {
+        // href likely begins with /api/v3/... or another relative path; prefix with API root
+        downloadUrl = `${apiRoot}${href.startsWith('/') ? '' : '/'}${href}`;
+      }
+
+      logger.logApiRequest('GET', downloadUrl, undefined, { attachmentId, fileName: attachment.fileName });
+      // Use absolute URL to bypass axios baseURL
+      const downloadResponse = await this.axiosInstance.get(downloadUrl, { responseType: 'arraybuffer' });
+      logger.logApiResponse('GET', downloadUrl, downloadResponse.status, downloadResponse.headers, `<<binary ${downloadResponse.data?.byteLength || 0} bytes>>`);
+
+      // Dynamically import fs and path for ESM compatibility
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // Resolve final file path
+      let finalFilePath: string;
+      if (outputPath) {
+        try {
+          const stat = fs.statSync(outputPath);
+          if (stat.isDirectory()) {
+            finalFilePath = path.join(outputPath, attachment.fileName);
+          } else {
+            finalFilePath = outputPath; // Treat as file path
+          }
+        } catch {
+          // Path does not exist; if it ends with path separator treat as dir, else treat as file path
+          const endsWithSep = outputPath.endsWith(path.sep) || outputPath.endsWith('/') || outputPath.endsWith('\\');
+          finalFilePath = endsWithSep ? path.join(outputPath, attachment.fileName) : outputPath;
+        }
+      } else {
+        const defaultDir = path.join(process.cwd(), 'downloads');
+        finalFilePath = path.join(defaultDir, attachment.fileName);
+      }
+
+      // Ensure directory exists
+      const dirName = path.dirname(finalFilePath);
+      fs.mkdirSync(dirName, { recursive: true });
+
+      // Write file
+      const data: Buffer = downloadResponse.data as Buffer;
+      fs.writeFileSync(finalFilePath, data);
+
+      const duration = Date.now() - startTime;
+      logger.info(`downloadAttachment completed successfully (${duration}ms)`, {
+        attachmentId,
+        fileName: attachment.fileName,
+        fileSize: data.byteLength,
+        savedTo: finalFilePath,
+      });
+
+      return { filePath: finalFilePath, fileName: attachment.fileName, fileSize: data.byteLength };
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      logger.error(`downloadAttachment failed (${duration}ms)`, {
+        attachmentId,
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+      });
+      throw error;
+    }
+  }
 }

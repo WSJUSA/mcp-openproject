@@ -38,6 +38,7 @@ import {
   GetRoleArgsSchema,
   UploadAttachmentArgsSchema,
   GetAttachmentsArgsSchema,
+  DownloadAttachmentArgsSchema,
 } from '../tools/index.js';
 
 export class OpenProjectToolHandlers {
@@ -184,6 +185,9 @@ export class OpenProjectToolHandlers {
           break;
         case 'get_attachments':
           result = await this.handleGetAttachments(args);
+          break;
+        case 'download_attachment':
+          result = await this.handleDownloadAttachment(args);
           break;
 
         // Utility handlers
@@ -1192,6 +1196,23 @@ export class OpenProjectToolHandlers {
               return `- ${attachment.fileName} (ID: ${attachment.id})\n  Size: ${attachment.fileSize} bytes\n  Description: ${descriptionText}`;
             })
             .join('\n\n')}`,
+        },
+      ],
+    };
+  }
+
+  private async handleDownloadAttachment(args: any) {
+    const validatedArgs = DownloadAttachmentArgsSchema.parse(args);
+    const { filePath, fileName, fileSize } = await this.client.downloadAttachment(
+      validatedArgs.attachmentId,
+      validatedArgs.outputPath
+    );
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Attachment downloaded successfully:\n\nFile: ${fileName}\nSize: ${fileSize} bytes\nSaved to: ${filePath}`,
         },
       ],
     };

@@ -68,3 +68,6 @@ jspm_packages/
 # Test files
 test-*.js
 test-*.cjs
+
+# Coding Agent files
+.cursor/*
